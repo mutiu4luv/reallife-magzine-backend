@@ -4,6 +4,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import dns from "dns";
+import mongoose from "mongoose";
 import postRoutes from "./route/post.routes";
 import upcomingEventRoutes from "./route/upcomingEvent.routes";
 
@@ -42,7 +43,15 @@ app.use(express.json());
 app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
 
 app.get("/api/health", (_, res) => {
-  res.json({ status: "ok" });
+  res.json({
+    status: "ok",
+    database: {
+      configured: Boolean(process.env.MONGO_URI?.trim()),
+      connected: mongoose.connection.readyState === 1,
+      readyState: mongoose.connection.readyState,
+    },
+    environment: process.env.NODE_ENV || "development",
+  });
 });
 
 app.use("/api/posts", postRoutes);

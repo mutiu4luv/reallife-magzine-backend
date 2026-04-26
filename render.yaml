@@ -10,3 +10,13 @@ services:
         value: production
       - key: CORS_ORIGIN
         value: https://www.realitylifemagazine.com,https://reallife-magzine-y3mq.vercel.app,http://localhost:5173
+      - key: MONGO_URI
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: PUBLIC_API_URL
+        value: https://reallife-magzine-backend.onrender.com
