@@ -1,18 +1,30 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
+const loadModule = (paths) => {
+    let lastError;
+    for (const modulePath of paths) {
+        try {
+            return require(modulePath);
+        }
+        catch (error) {
+            lastError = error;
+            if (typeof error === "object" &&
+                error !== null &&
+                "code" in error &&
+                error.code !== "MODULE_NOT_FOUND") {
+                throw error;
+            }
+        }
+    }
+    throw lastError;
 };
-Object.defineProperty(exports, "__esModule", { value: true });
-const app_1 = __importDefault(require("./app"));
-const db_1 = require("./config/db");
+const appModule = loadModule(["./app", "./dist/app"]);
+const dbModule = loadModule(["./config/db", "./dist/config/db"]);
+const app = appModule.default ?? appModule;
+const { connectDB } = dbModule;
 const PORT = process.env.PORT || 5000;
-(0, db_1.connectDB)()
-    .then(() => {
-    app_1.default.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
-    });
-})
-    .catch((err) => {
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
+connectDB().catch((err) => {
     console.error("Failed to connect to MongoDB", err);
-    process.exit(1);
 });

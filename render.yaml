@@ -8,3 +8,5 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: CORS_ORIGIN
+        value: https://www.realitylifemagazine.com,https://reallife-magzine-y3mq.vercel.app,http://localhost:5173

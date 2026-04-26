@@ -4,6 +4,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import dns from "dns";
+import mongoose from "mongoose";
 import postRoutes from "./route/post.routes";
 import upcomingEventRoutes from "./route/upcomingEvent.routes";
 
@@ -13,8 +14,25 @@ dotenv.config();
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 const app = express();
+const allowedOrigins = process.env.CORS_ORIGIN?.split(",")
+  .map((origin) => origin.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
 
-app.use(cors());
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      const normalizedOrigin = origin?.replace(/\/+$/, "");
+
+      if (!normalizedOrigin || !allowedOrigins?.length || allowedOrigins.includes(normalizedOrigin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
 
@@ -22,8 +40,17 @@ app.get("/api/health", (_, res) => {
   res.json({ status: "ok" });
 });
 
-app.use("/api/posts", postRoutes);
-app.use("/api/upcoming-events", upcomingEventRoutes);
+const requireDatabase = (_req: Request, res: Response, next: NextFunction) => {
+  if (mongoose.connection.readyState !== 1) {
+    res.status(503).json({ message: "Database connection is not ready" });
+    return;
+  }
+
+  next();
+};
+
+app.use("/api/posts", requireDatabase, postRoutes);
+app.use("/api/upcoming-events", requireDatabase, upcomingEventRoutes);
 
 app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
   if (error instanceof SyntaxError && "body" in error) {
