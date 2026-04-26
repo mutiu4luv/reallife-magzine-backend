@@ -4,7 +4,6 @@ import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import dns from "dns";
-import mongoose from "mongoose";
 import postRoutes from "./route/post.routes";
 import upcomingEventRoutes from "./route/upcomingEvent.routes";
 
@@ -17,13 +16,19 @@ const app = express();
 const allowedOrigins = process.env.CORS_ORIGIN?.split(",")
   .map((origin) => origin.trim().replace(/\/+$/, ""))
   .filter(Boolean);
+const isLocalDevOrigin = (origin: string) => /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
 
 app.use(
   cors({
     origin: (origin, callback) => {
       const normalizedOrigin = origin?.replace(/\/+$/, "");
 
-      if (!normalizedOrigin || !allowedOrigins?.length || allowedOrigins.includes(normalizedOrigin)) {
+      if (
+        !normalizedOrigin ||
+        !allowedOrigins?.length ||
+        allowedOrigins.includes(normalizedOrigin) ||
+        isLocalDevOrigin(normalizedOrigin)
+      ) {
         callback(null, true);
         return;
       }
@@ -40,17 +45,8 @@ app.get("/api/health", (_, res) => {
   res.json({ status: "ok" });
 });
 
-const requireDatabase = (_req: Request, res: Response, next: NextFunction) => {
-  if (mongoose.connection.readyState !== 1) {
-    res.status(503).json({ message: "Database connection is not ready" });
-    return;
-  }
-
-  next();
-};
-
-app.use("/api/posts", requireDatabase, postRoutes);
-app.use("/api/upcoming-events", requireDatabase, upcomingEventRoutes);
+app.use("/api/posts", postRoutes);
+app.use("/api/upcoming-events", upcomingEventRoutes);
 
 app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
   if (error instanceof SyntaxError && "body" in error) {

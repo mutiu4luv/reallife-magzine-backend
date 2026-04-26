@@ -5,9 +5,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deletePost = exports.createPost = exports.getPosts = void 0;
 const post_model_1 = __importDefault(require("../model/post.model"));
+const databaseStatus_1 = require("../utils/databaseStatus");
 const imageUpload_1 = require("../utils/imageUpload");
 const getPosts = async (_, res) => {
     try {
+        if (!(0, databaseStatus_1.isDatabaseConnected)()) {
+            (0, databaseStatus_1.sendEmptyListWhenDatabaseUnavailable)(res);
+            return;
+        }
         const posts = await post_model_1.default.find().sort({ createdAt: -1 });
         res.status(200).json(posts);
     }
@@ -19,6 +24,10 @@ const getPosts = async (_, res) => {
 exports.getPosts = getPosts;
 const createPost = async (req, res) => {
     try {
+        if (!(0, databaseStatus_1.isDatabaseConnected)()) {
+            (0, databaseStatus_1.sendDatabaseUnavailable)(res);
+            return;
+        }
         const { title, type, desc, imageUrl, image } = req.body;
         const file = req.file;
         const imageSource = imageUrl || image;
@@ -49,6 +58,10 @@ const createPost = async (req, res) => {
 exports.createPost = createPost;
 const deletePost = async (req, res) => {
     try {
+        if (!(0, databaseStatus_1.isDatabaseConnected)()) {
+            (0, databaseStatus_1.sendDatabaseUnavailable)(res);
+            return;
+        }
         const deletedPost = await post_model_1.default.findByIdAndDelete(req.params.id);
         if (!deletedPost) {
             return res.status(404).json({ message: "Post not found" });

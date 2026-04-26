@@ -1,9 +1,19 @@
 import postModel from "../model/post.model";
 import { Request, Response } from "express";
+import {
+  isDatabaseConnected,
+  sendDatabaseUnavailable,
+  sendEmptyListWhenDatabaseUnavailable,
+} from "../utils/databaseStatus";
 import { getErrorMessage, uploadImage, UploadedFile } from "../utils/imageUpload";
 
 export const getPosts = async (_: Request, res: Response) => {
   try {
+    if (!isDatabaseConnected()) {
+      sendEmptyListWhenDatabaseUnavailable(res);
+      return;
+    }
+
     const posts = await postModel.find().sort({ createdAt: -1 });
     res.status(200).json(posts);
   } catch (error) {
@@ -14,6 +24,11 @@ export const getPosts = async (_: Request, res: Response) => {
 
 export const createPost = async (req: Request, res: Response) => {
   try {
+    if (!isDatabaseConnected()) {
+      sendDatabaseUnavailable(res);
+      return;
+    }
+
     const { title, type, desc, imageUrl, image } = req.body;
     const file = (req as Request & { file?: UploadedFile }).file;
     const imageSource = imageUrl || image;
@@ -48,6 +63,11 @@ export const createPost = async (req: Request, res: Response) => {
 
 export const deletePost = async (req: Request, res: Response) => {
   try {
+    if (!isDatabaseConnected()) {
+      sendDatabaseUnavailable(res);
+      return;
+    }
+
     const deletedPost = await postModel.findByIdAndDelete(req.params.id);
 
     if (!deletedPost) {
