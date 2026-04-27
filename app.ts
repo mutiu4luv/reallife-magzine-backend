@@ -15,20 +15,16 @@ dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 const app = express();
 const allowedOrigins = process.env.CORS_ORIGIN?.split(",")
-  .map((origin) => origin.trim().replace(/\/+$/, ""))
+  .map((origin) => origin.trim())
   .filter(Boolean);
-const isLocalDevOrigin = (origin: string) => /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      const normalizedOrigin = origin?.replace(/\/+$/, "");
-
       if (
-        !normalizedOrigin ||
+        !origin ||
         !allowedOrigins?.length ||
-        allowedOrigins.includes(normalizedOrigin) ||
-        isLocalDevOrigin(normalizedOrigin)
+        allowedOrigins.includes(origin)
       ) {
         callback(null, true);
         return;
@@ -43,23 +39,26 @@ app.use(express.json());
 app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
 
 app.get("/api/health", (_, res) => {
-  res.json({
-    status: "ok",
-    database: {
-      configured: Boolean(process.env.MONGO_URI?.trim()),
-      connected: mongoose.connection.readyState === 1,
-      readyState: mongoose.connection.readyState,
-    },
-    environment: process.env.NODE_ENV || "development",
-  });
+  res.json({ status: "ok" });
 });
 
-app.use("/api/posts", postRoutes);
-app.use("/api/upcoming-events", upcomingEventRoutes);
+const requireDatabase = (_req: Request, res: Response, next: NextFunction) => {
+  if (mongoose.connection.readyState !== 1) {
+    res.status(503).json({ message: "Database connection is not ready" });
+    return;
+  }
+
+  next();
+};
+
+app.use("/api/posts", requireDatabase, postRoutes);
+app.use("/api/upcoming-events", requireDatabase, upcomingEventRoutes);
 
 app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
   if (error instanceof SyntaxError && "body" in error) {
-    res.status(400).json({ message: "Invalid JSON body", error: error.message });
+    res
+      .status(400)
+      .json({ message: "Invalid JSON body", error: error.message });
     return;
   }
 

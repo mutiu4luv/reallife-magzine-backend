@@ -9,6 +9,7 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = __importDefault(require("path"));
 const dns_1 = __importDefault(require("dns"));
 const mongoose_1 = __importDefault(require("mongoose"));
+const db_1 = require("./config/db");
 const post_routes_1 = __importDefault(require("./route/post.routes"));
 const upcomingEvent_routes_1 = __importDefault(require("./route/upcomingEvent.routes"));
 dns_1.default.setDefaultResultOrder("ipv4first");
@@ -45,6 +46,19 @@ app.get("/api/health", (_, res) => {
         },
         environment: process.env.NODE_ENV || "development",
     });
+});
+app.use("/api", async (req, _res, next) => {
+    if (req.path === "/health") {
+        next();
+        return;
+    }
+    try {
+        await (0, db_1.connectDB)();
+    }
+    catch (error) {
+        console.error("Failed to connect to MongoDB", error);
+    }
+    next();
 });
 app.use("/api/posts", post_routes_1.default);
 app.use("/api/upcoming-events", upcomingEvent_routes_1.default);

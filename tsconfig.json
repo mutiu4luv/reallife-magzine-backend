@@ -12,6 +12,7 @@
   },
   "include": [
     "app.ts",
+    "api/**/*.ts",
     "server.ts",
     "config/**/*.ts",
     "controller/**/*.ts",
