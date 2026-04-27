@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import path from "path";
 import dns from "dns";
 import mongoose from "mongoose";
+import { connectDB } from "./config/db";
 import postRoutes from "./route/post.routes";
 import upcomingEventRoutes from "./route/upcomingEvent.routes";
 
@@ -15,16 +16,20 @@ dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 const app = express();
 const allowedOrigins = process.env.CORS_ORIGIN?.split(",")
-  .map((origin) => origin.trim())
+  .map((origin) => origin.trim().replace(/\/+$/, ""))
   .filter(Boolean);
+const isLocalDevOrigin = (origin: string) => /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
 
 app.use(
   cors({
     origin: (origin, callback) => {
+      const normalizedOrigin = origin?.replace(/\/+$/, "");
+
       if (
-        !origin ||
+        !normalizedOrigin ||
         !allowedOrigins?.length ||
-        allowedOrigins.includes(origin)
+        allowedOrigins.includes(normalizedOrigin) ||
+        isLocalDevOrigin(normalizedOrigin)
       ) {
         callback(null, true);
         return;
@@ -39,16 +44,25 @@ app.use(express.json());
 app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
 
 app.get("/api/health", (_, res) => {
-  res.json({ status: "ok" });
+  res.json({
+    status: "ok",
+    database: {
+      configured: Boolean(process.env.MONGO_URI?.trim()),
+      connected: mongoose.connection.readyState === 1,
+      readyState: mongoose.connection.readyState,
+    },
+    environment: process.env.NODE_ENV || "development",
+  });
 });
 
-const requireDatabase = (_req: Request, res: Response, next: NextFunction) => {
-  if (mongoose.connection.readyState !== 1) {
+const requireDatabase = async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    console.error("Failed to connect to MongoDB", error);
     res.status(503).json({ message: "Database connection is not ready" });
-    return;
   }
-
-  next();
 };
 
 app.use("/api/posts", requireDatabase, postRoutes);

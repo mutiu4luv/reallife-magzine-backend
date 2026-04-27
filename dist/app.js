@@ -47,24 +47,23 @@ app.get("/api/health", (_, res) => {
         environment: process.env.NODE_ENV || "development",
     });
 });
-app.use("/api", async (req, _res, next) => {
-    if (req.path === "/health") {
-        next();
-        return;
-    }
+const requireDatabase = async (_req, res, next) => {
     try {
         await (0, db_1.connectDB)();
+        next();
     }
     catch (error) {
         console.error("Failed to connect to MongoDB", error);
+        res.status(503).json({ message: "Database connection is not ready" });
     }
-    next();
-});
-app.use("/api/posts", post_routes_1.default);
-app.use("/api/upcoming-events", upcomingEvent_routes_1.default);
+};
+app.use("/api/posts", requireDatabase, post_routes_1.default);
+app.use("/api/upcoming-events", requireDatabase, upcomingEvent_routes_1.default);
 app.use((error, _req, res, next) => {
     if (error instanceof SyntaxError && "body" in error) {
-        res.status(400).json({ message: "Invalid JSON body", error: error.message });
+        res
+            .status(400)
+            .json({ message: "Invalid JSON body", error: error.message });
         return;
     }
     next(error);
