@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deletePost = exports.createPost = exports.getPosts = void 0;
+exports.deletePost = exports.createPost = exports.getPostById = exports.getPosts = void 0;
 const post_model_1 = __importDefault(require("../model/post.model"));
 const databaseStatus_1 = require("../utils/databaseStatus");
 const imageUpload_1 = require("../utils/imageUpload");
@@ -22,6 +22,24 @@ const getPosts = async (_, res) => {
     }
 };
 exports.getPosts = getPosts;
+const getPostById = async (req, res) => {
+    try {
+        if (!(0, databaseStatus_1.isDatabaseConnected)()) {
+            (0, databaseStatus_1.sendDatabaseUnavailable)(res);
+            return;
+        }
+        const post = await post_model_1.default.findById(req.params.id);
+        if (!post) {
+            return res.status(404).json({ message: "Post not found" });
+        }
+        res.status(200).json(post);
+    }
+    catch (error) {
+        console.error("Error fetching post:", error);
+        res.status(500).json({ message: "Error fetching post", error: (0, imageUpload_1.getErrorMessage)(error) });
+    }
+};
+exports.getPostById = getPostById;
 const createPost = async (req, res) => {
     try {
         if (!(0, databaseStatus_1.isDatabaseConnected)()) {

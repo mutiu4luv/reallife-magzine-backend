@@ -5,6 +5,7 @@ const post_controller_1 = require("../controller/post.controller");
 const uploadImage_1 = require("./uploadImage");
 const router = (0, express_1.Router)();
 router.get("/", post_controller_1.getPosts);
+router.get("/:id", post_controller_1.getPostById);
 router.post("/", uploadImage_1.uploadImageField, post_controller_1.createPost);
 router.delete("/:id", post_controller_1.deletePost);
 exports.default = router;
