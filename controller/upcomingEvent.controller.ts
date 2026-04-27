@@ -1,19 +1,9 @@
 import { Request, Response } from "express";
 import upcomingEventModel from "../model/upcomingEvent.model";
-import {
-  isDatabaseConnected,
-  sendDatabaseUnavailable,
-  sendEmptyListWhenDatabaseUnavailable,
-} from "../utils/databaseStatus";
 import { getErrorMessage, uploadImage, UploadedFile } from "../utils/imageUpload";
 
 export const getUpcomingEvents = async (_: Request, res: Response) => {
   try {
-    if (!isDatabaseConnected()) {
-      sendEmptyListWhenDatabaseUnavailable(res);
-      return;
-    }
-
     const events = await upcomingEventModel.find().sort({ createdAt: -1 });
     res.status(200).json(events);
   } catch (error) {
@@ -24,11 +14,6 @@ export const getUpcomingEvents = async (_: Request, res: Response) => {
 
 export const getUpcomingEventById = async (req: Request, res: Response) => {
   try {
-    if (!isDatabaseConnected()) {
-      sendDatabaseUnavailable(res);
-      return;
-    }
-
     const event = await upcomingEventModel.findById(req.params.id);
 
     if (!event) {
@@ -44,11 +29,6 @@ export const getUpcomingEventById = async (req: Request, res: Response) => {
 
 export const createUpcomingEvent = async (req: Request, res: Response) => {
   try {
-    if (!isDatabaseConnected()) {
-      sendDatabaseUnavailable(res);
-      return;
-    }
-
     const { title, description, isActive } = req.body;
     const files = ((req as Request & { files?: UploadedFile[] }).files || []) as UploadedFile[];
 
@@ -86,11 +66,6 @@ export const createUpcomingEvent = async (req: Request, res: Response) => {
 
 export const deleteUpcomingEvent = async (req: Request, res: Response) => {
   try {
-    if (!isDatabaseConnected()) {
-      sendDatabaseUnavailable(res);
-      return;
-    }
-
     const deletedEvent = await upcomingEventModel.findByIdAndDelete(req.params.id);
 
     if (!deletedEvent) {

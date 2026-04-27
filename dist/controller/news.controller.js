@@ -5,14 +5,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteNews = exports.createNews = exports.getNewsById = exports.getNews = void 0;
 const news_model_1 = __importDefault(require("../model/news.model"));
-const databaseStatus_1 = require("../utils/databaseStatus");
 const imageUpload_1 = require("../utils/imageUpload");
 const getNews = async (_, res) => {
     try {
-        if (!(0, databaseStatus_1.isDatabaseConnected)()) {
-            (0, databaseStatus_1.sendEmptyListWhenDatabaseUnavailable)(res);
-            return;
-        }
         const news = await news_model_1.default.find().sort({ createdAt: -1 });
         res.status(200).json(news);
     }
@@ -24,10 +19,6 @@ const getNews = async (_, res) => {
 exports.getNews = getNews;
 const getNewsById = async (req, res) => {
     try {
-        if (!(0, databaseStatus_1.isDatabaseConnected)()) {
-            (0, databaseStatus_1.sendDatabaseUnavailable)(res);
-            return;
-        }
         const news = await news_model_1.default.findById(req.params.id);
         if (!news) {
             return res.status(404).json({ message: "News item not found" });
@@ -42,10 +33,6 @@ const getNewsById = async (req, res) => {
 exports.getNewsById = getNewsById;
 const createNews = async (req, res) => {
     try {
-        if (!(0, databaseStatus_1.isDatabaseConnected)()) {
-            (0, databaseStatus_1.sendDatabaseUnavailable)(res);
-            return;
-        }
         const { title, description, imageUrl, image } = req.body;
         const file = req.file;
         const imageSource = imageUrl || image;
@@ -75,10 +62,6 @@ const createNews = async (req, res) => {
 exports.createNews = createNews;
 const deleteNews = async (req, res) => {
     try {
-        if (!(0, databaseStatus_1.isDatabaseConnected)()) {
-            (0, databaseStatus_1.sendDatabaseUnavailable)(res);
-            return;
-        }
         const deletedNews = await news_model_1.default.findByIdAndDelete(req.params.id);
         if (!deletedNews) {
             return res.status(404).json({ message: "News item not found" });

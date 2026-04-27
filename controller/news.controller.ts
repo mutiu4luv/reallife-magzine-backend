@@ -1,19 +1,9 @@
 import { Request, Response } from "express";
 import newsModel from "../model/news.model";
-import {
-  isDatabaseConnected,
-  sendDatabaseUnavailable,
-  sendEmptyListWhenDatabaseUnavailable,
-} from "../utils/databaseStatus";
 import { getErrorMessage, uploadImage, UploadedFile } from "../utils/imageUpload";
 
 export const getNews = async (_: Request, res: Response) => {
   try {
-    if (!isDatabaseConnected()) {
-      sendEmptyListWhenDatabaseUnavailable(res);
-      return;
-    }
-
     const news = await newsModel.find().sort({ createdAt: -1 });
     res.status(200).json(news);
   } catch (error) {
@@ -24,11 +14,6 @@ export const getNews = async (_: Request, res: Response) => {
 
 export const getNewsById = async (req: Request, res: Response) => {
   try {
-    if (!isDatabaseConnected()) {
-      sendDatabaseUnavailable(res);
-      return;
-    }
-
     const news = await newsModel.findById(req.params.id);
 
     if (!news) {
@@ -44,11 +29,6 @@ export const getNewsById = async (req: Request, res: Response) => {
 
 export const createNews = async (req: Request, res: Response) => {
   try {
-    if (!isDatabaseConnected()) {
-      sendDatabaseUnavailable(res);
-      return;
-    }
-
     const { title, description, imageUrl, image } = req.body;
     const file = (req as Request & { file?: UploadedFile }).file;
     const imageSource = imageUrl || image;
@@ -82,11 +62,6 @@ export const createNews = async (req: Request, res: Response) => {
 
 export const deleteNews = async (req: Request, res: Response) => {
   try {
-    if (!isDatabaseConnected()) {
-      sendDatabaseUnavailable(res);
-      return;
-    }
-
     const deletedNews = await newsModel.findByIdAndDelete(req.params.id);
 
     if (!deletedNews) {

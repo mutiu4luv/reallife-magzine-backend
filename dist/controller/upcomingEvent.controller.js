@@ -5,14 +5,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteUpcomingEvent = exports.createUpcomingEvent = exports.getUpcomingEventById = exports.getUpcomingEvents = void 0;
 const upcomingEvent_model_1 = __importDefault(require("../model/upcomingEvent.model"));
-const databaseStatus_1 = require("../utils/databaseStatus");
 const imageUpload_1 = require("../utils/imageUpload");
 const getUpcomingEvents = async (_, res) => {
     try {
-        if (!(0, databaseStatus_1.isDatabaseConnected)()) {
-            (0, databaseStatus_1.sendEmptyListWhenDatabaseUnavailable)(res);
-            return;
-        }
         const events = await upcomingEvent_model_1.default.find().sort({ createdAt: -1 });
         res.status(200).json(events);
     }
@@ -24,10 +19,6 @@ const getUpcomingEvents = async (_, res) => {
 exports.getUpcomingEvents = getUpcomingEvents;
 const getUpcomingEventById = async (req, res) => {
     try {
-        if (!(0, databaseStatus_1.isDatabaseConnected)()) {
-            (0, databaseStatus_1.sendDatabaseUnavailable)(res);
-            return;
-        }
         const event = await upcomingEvent_model_1.default.findById(req.params.id);
         if (!event) {
             return res.status(404).json({ message: "Upcoming event not found" });
@@ -42,10 +33,6 @@ const getUpcomingEventById = async (req, res) => {
 exports.getUpcomingEventById = getUpcomingEventById;
 const createUpcomingEvent = async (req, res) => {
     try {
-        if (!(0, databaseStatus_1.isDatabaseConnected)()) {
-            (0, databaseStatus_1.sendDatabaseUnavailable)(res);
-            return;
-        }
         const { title, description, isActive } = req.body;
         const files = (req.files || []);
         if (!title?.trim() || !description?.trim()) {
@@ -76,10 +63,6 @@ const createUpcomingEvent = async (req, res) => {
 exports.createUpcomingEvent = createUpcomingEvent;
 const deleteUpcomingEvent = async (req, res) => {
     try {
-        if (!(0, databaseStatus_1.isDatabaseConnected)()) {
-            (0, databaseStatus_1.sendDatabaseUnavailable)(res);
-            return;
-        }
         const deletedEvent = await upcomingEvent_model_1.default.findByIdAndDelete(req.params.id);
         if (!deletedEvent) {
             return res.status(404).json({ message: "Upcoming event not found" });

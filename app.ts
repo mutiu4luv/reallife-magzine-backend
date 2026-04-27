@@ -58,12 +58,32 @@ app.get("/api/health", (_, res) => {
 });
 
 const requireDatabase = async (_req: Request, res: Response, next: NextFunction) => {
+  const retryDelays = [500, 1200, 2500];
+  let lastError: unknown;
+
   try {
-    await connectDB();
-    next();
+    for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
+      try {
+        await connectDB();
+        next();
+        return;
+      } catch (error) {
+        lastError = error;
+
+        if (attempt < retryDelays.length) {
+          await new Promise((resolve) => {
+            setTimeout(resolve, retryDelays[attempt]);
+          });
+        }
+      }
+    }
+
+    throw lastError;
   } catch (error) {
     console.error("Failed to connect to MongoDB", error);
-    res.status(503).json({ message: "Database connection is not ready" });
+    res.status(503).json({
+      message: "Database connection is not ready. Please try again in a moment.",
+    });
   }
 };
 

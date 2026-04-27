@@ -1,6 +1,31 @@
 import mongoose from "mongoose";
 
 let connectionPromise: Promise<typeof mongoose> | null = null;
+let hasRegisteredConnectionListeners = false;
+
+const registerConnectionListeners = () => {
+  if (hasRegisteredConnectionListeners) {
+    return;
+  }
+
+  hasRegisteredConnectionListeners = true;
+
+  mongoose.connection.on("connected", () => {
+    console.log("MongoDB connected");
+  });
+
+  mongoose.connection.on("reconnected", () => {
+    console.log("MongoDB reconnected");
+  });
+
+  mongoose.connection.on("disconnected", () => {
+    console.warn("MongoDB disconnected");
+  });
+
+  mongoose.connection.on("error", (error) => {
+    console.error("MongoDB connection error", error);
+  });
+};
 
 export const connectDB = async () => {
   if (mongoose.connection.readyState === 1) {
@@ -17,14 +42,20 @@ export const connectDB = async () => {
     throw new Error("MONGO_URI is missing from environment variables");
   }
 
-  mongoose.set("bufferCommands", false);
+  registerConnectionListeners();
+  mongoose.set("bufferCommands", true);
 
   connectionPromise = mongoose
     .connect(mongoUri, {
-      serverSelectionTimeoutMS: 10000,
+      serverSelectionTimeoutMS: Number(process.env.MONGO_SERVER_SELECTION_TIMEOUT_MS || 30000),
+      connectTimeoutMS: Number(process.env.MONGO_CONNECT_TIMEOUT_MS || 30000),
+      socketTimeoutMS: Number(process.env.MONGO_SOCKET_TIMEOUT_MS || 45000),
+      heartbeatFrequencyMS: Number(process.env.MONGO_HEARTBEAT_FREQUENCY_MS || 10000),
+      maxPoolSize: Number(process.env.MONGO_MAX_POOL_SIZE || 10),
+      minPoolSize: Number(process.env.MONGO_MIN_POOL_SIZE || 1),
     })
     .then((mongooseInstance) => {
-      console.log("MongoDB connected");
+      connectionPromise = null;
       return mongooseInstance;
     })
     .catch((error) => {

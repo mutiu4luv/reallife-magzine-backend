@@ -6,6 +6,25 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.connectDB = void 0;
 const mongoose_1 = __importDefault(require("mongoose"));
 let connectionPromise = null;
+let hasRegisteredConnectionListeners = false;
+const registerConnectionListeners = () => {
+    if (hasRegisteredConnectionListeners) {
+        return;
+    }
+    hasRegisteredConnectionListeners = true;
+    mongoose_1.default.connection.on("connected", () => {
+        console.log("MongoDB connected");
+    });
+    mongoose_1.default.connection.on("reconnected", () => {
+        console.log("MongoDB reconnected");
+    });
+    mongoose_1.default.connection.on("disconnected", () => {
+        console.warn("MongoDB disconnected");
+    });
+    mongoose_1.default.connection.on("error", (error) => {
+        console.error("MongoDB connection error", error);
+    });
+};
 const connectDB = async () => {
     if (mongoose_1.default.connection.readyState === 1) {
         return mongoose_1.default;
@@ -17,13 +36,19 @@ const connectDB = async () => {
     if (!mongoUri) {
         throw new Error("MONGO_URI is missing from environment variables");
     }
-    mongoose_1.default.set("bufferCommands", false);
+    registerConnectionListeners();
+    mongoose_1.default.set("bufferCommands", true);
     connectionPromise = mongoose_1.default
         .connect(mongoUri, {
-        serverSelectionTimeoutMS: 10000,
+        serverSelectionTimeoutMS: Number(process.env.MONGO_SERVER_SELECTION_TIMEOUT_MS || 30000),
+        connectTimeoutMS: Number(process.env.MONGO_CONNECT_TIMEOUT_MS || 30000),
+        socketTimeoutMS: Number(process.env.MONGO_SOCKET_TIMEOUT_MS || 45000),
+        heartbeatFrequencyMS: Number(process.env.MONGO_HEARTBEAT_FREQUENCY_MS || 10000),
+        maxPoolSize: Number(process.env.MONGO_MAX_POOL_SIZE || 10),
+        minPoolSize: Number(process.env.MONGO_MIN_POOL_SIZE || 1),
     })
         .then((mongooseInstance) => {
-        console.log("MongoDB connected");
+        connectionPromise = null;
         return mongooseInstance;
     })
         .catch((error) => {
