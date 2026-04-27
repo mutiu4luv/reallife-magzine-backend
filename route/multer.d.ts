@@ -3,6 +3,7 @@ declare module "multer" {
 
   interface Multer {
     single(fieldName: string): RequestHandler;
+    array(fieldName: string, maxCount?: number): RequestHandler;
   }
 
   interface StorageEngine {}

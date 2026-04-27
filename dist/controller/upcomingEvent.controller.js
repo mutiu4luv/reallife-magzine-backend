@@ -13,7 +13,7 @@ const getUpcomingEvents = async (_, res) => {
             (0, databaseStatus_1.sendEmptyListWhenDatabaseUnavailable)(res);
             return;
         }
-        const events = await upcomingEvent_model_1.default.find({ isActive: true }).sort({ createdAt: -1 });
+        const events = await upcomingEvent_model_1.default.find().sort({ createdAt: -1 });
         res.status(200).json(events);
     }
     catch (error) {
@@ -28,12 +28,23 @@ const createUpcomingEvent = async (req, res) => {
             (0, databaseStatus_1.sendDatabaseUnavailable)(res);
             return;
         }
-        const { title } = req.body;
-        if (!title) {
-            return res.status(400).json({ message: "Title is required" });
+        const { title, description, isActive } = req.body;
+        const files = (req.files || []);
+        if (!title?.trim() || !description?.trim()) {
+            return res.status(400).json({ message: "Title and description are required" });
         }
+        if (!files.length) {
+            return res.status(400).json({
+                message: "At least one image is required. Upload files named 'images'.",
+            });
+        }
+        const images = await Promise.all(files.map((file) => (0, imageUpload_1.uploadImage)("reality_life_events", file)));
+        const uploadedImages = images.filter((image) => Boolean(image));
         const event = await upcomingEvent_model_1.default.create({
-            title,
+            title: title.trim(),
+            description: description.trim(),
+            images: uploadedImages,
+            isActive: isActive === undefined ? true : isActive === "true" || isActive === true,
         });
         res.status(201).json(event);
     }

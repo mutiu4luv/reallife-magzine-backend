@@ -9,6 +9,7 @@ import { connectDB } from "./config/db";
 import contactRoutes from "./route/contact.routes";
 import postRoutes from "./route/post.routes";
 import upcomingEventRoutes from "./route/upcomingEvent.routes";
+import newsRoutes from "./route/news.routes";
 
 dns.setDefaultResultOrder("ipv4first");
 
@@ -68,6 +69,8 @@ const requireDatabase = async (_req: Request, res: Response, next: NextFunction)
 
 app.use("/api/posts", requireDatabase, postRoutes);
 app.use("/api/upcoming-events", requireDatabase, upcomingEventRoutes);
+app.use("/api/events", requireDatabase, upcomingEventRoutes);
+app.use("/api/news", requireDatabase, newsRoutes);
 app.use("/api/contact", requireDatabase, contactRoutes);
 
 app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {

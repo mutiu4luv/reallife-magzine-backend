@@ -5,7 +5,7 @@ import {
   sendDatabaseUnavailable,
   sendEmptyListWhenDatabaseUnavailable,
 } from "../utils/databaseStatus";
-import { getErrorMessage } from "../utils/imageUpload";
+import { getErrorMessage, uploadImage, UploadedFile } from "../utils/imageUpload";
 
 export const getUpcomingEvents = async (_: Request, res: Response) => {
   try {
@@ -14,7 +14,7 @@ export const getUpcomingEvents = async (_: Request, res: Response) => {
       return;
     }
 
-    const events = await upcomingEventModel.find({ isActive: true }).sort({ createdAt: -1 });
+    const events = await upcomingEventModel.find().sort({ createdAt: -1 });
     res.status(200).json(events);
   } catch (error) {
     console.error("Error fetching upcoming events:", error);
@@ -29,14 +29,29 @@ export const createUpcomingEvent = async (req: Request, res: Response) => {
       return;
     }
 
-    const { title } = req.body;
+    const { title, description, isActive } = req.body;
+    const files = ((req as Request & { files?: UploadedFile[] }).files || []) as UploadedFile[];
 
-    if (!title) {
-      return res.status(400).json({ message: "Title is required" });
+    if (!title?.trim() || !description?.trim()) {
+      return res.status(400).json({ message: "Title and description are required" });
     }
 
+    if (!files.length) {
+      return res.status(400).json({
+        message: "At least one image is required. Upload files named 'images'.",
+      });
+    }
+
+    const images = await Promise.all(
+      files.map((file) => uploadImage("reality_life_events", file))
+    );
+    const uploadedImages = images.filter((image): image is string => Boolean(image));
+
     const event = await upcomingEventModel.create({
-      title,
+      title: title.trim(),
+      description: description.trim(),
+      images: uploadedImages,
+      isActive: isActive === undefined ? true : isActive === "true" || isActive === true,
     });
 
     res.status(201).json(event);

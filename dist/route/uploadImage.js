@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.uploadImageField = void 0;
+exports.uploadImagesField = exports.uploadImageField = void 0;
 const multer_1 = __importDefault(require("multer"));
 const upload = (0, multer_1.default)({
     storage: multer_1.default.memoryStorage(),
@@ -34,3 +34,19 @@ const uploadImageField = (req, res, next) => {
     });
 };
 exports.uploadImageField = uploadImageField;
+const uploadImagesField = (req, res, next) => {
+    upload.array("images", 10)(req, res, (error) => {
+        if (!error) {
+            next();
+            return;
+        }
+        if (error instanceof multer_1.default.MulterError && error.code === "LIMIT_FILE_SIZE") {
+            res.status(400).json({ message: "Each image must be 5MB or smaller" });
+            return;
+        }
+        res.status(400).json({
+            message: error instanceof Error ? error.message : "Invalid image upload",
+        });
+    });
+};
+exports.uploadImagesField = uploadImagesField;

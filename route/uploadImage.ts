@@ -33,3 +33,21 @@ export const uploadImageField = (req: Request, res: Response, next: NextFunction
     });
   });
 };
+
+export const uploadImagesField = (req: Request, res: Response, next: NextFunction) => {
+  upload.array("images", 10)(req, res, (error: unknown) => {
+    if (!error) {
+      next();
+      return;
+    }
+
+    if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
+      res.status(400).json({ message: "Each image must be 5MB or smaller" });
+      return;
+    }
+
+    res.status(400).json({
+      message: error instanceof Error ? error.message : "Invalid image upload",
+    });
+  });
+};

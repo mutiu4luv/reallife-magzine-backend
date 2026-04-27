@@ -4,11 +4,12 @@ import {
   deleteUpcomingEvent,
   getUpcomingEvents,
 } from "../controller/upcomingEvent.controller";
+import { uploadImagesField } from "./uploadImage";
 
 const router = Router();
 
 router.get("/", getUpcomingEvents);
-router.post("/", createUpcomingEvent);
+router.post("/", uploadImagesField, createUpcomingEvent);
 router.delete("/:id", deleteUpcomingEvent);
 
 export default router;
