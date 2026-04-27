@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteNews = exports.createNews = exports.getNews = void 0;
+exports.deleteNews = exports.createNews = exports.getNewsById = exports.getNews = void 0;
 const news_model_1 = __importDefault(require("../model/news.model"));
 const databaseStatus_1 = require("../utils/databaseStatus");
 const imageUpload_1 = require("../utils/imageUpload");
@@ -22,6 +22,24 @@ const getNews = async (_, res) => {
     }
 };
 exports.getNews = getNews;
+const getNewsById = async (req, res) => {
+    try {
+        if (!(0, databaseStatus_1.isDatabaseConnected)()) {
+            (0, databaseStatus_1.sendDatabaseUnavailable)(res);
+            return;
+        }
+        const news = await news_model_1.default.findById(req.params.id);
+        if (!news) {
+            return res.status(404).json({ message: "News item not found" });
+        }
+        res.status(200).json(news);
+    }
+    catch (error) {
+        console.error("Error fetching news item:", error);
+        res.status(500).json({ message: "Error fetching news item", error: (0, imageUpload_1.getErrorMessage)(error) });
+    }
+};
+exports.getNewsById = getNewsById;
 const createNews = async (req, res) => {
     try {
         if (!(0, databaseStatus_1.isDatabaseConnected)()) {

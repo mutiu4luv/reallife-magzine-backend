@@ -22,6 +22,26 @@ export const getNews = async (_: Request, res: Response) => {
   }
 };
 
+export const getNewsById = async (req: Request, res: Response) => {
+  try {
+    if (!isDatabaseConnected()) {
+      sendDatabaseUnavailable(res);
+      return;
+    }
+
+    const news = await newsModel.findById(req.params.id);
+
+    if (!news) {
+      return res.status(404).json({ message: "News item not found" });
+    }
+
+    res.status(200).json(news);
+  } catch (error) {
+    console.error("Error fetching news item:", error);
+    res.status(500).json({ message: "Error fetching news item", error: getErrorMessage(error) });
+  }
+};
+
 export const createNews = async (req: Request, res: Response) => {
   try {
     if (!isDatabaseConnected()) {

@@ -22,6 +22,26 @@ export const getUpcomingEvents = async (_: Request, res: Response) => {
   }
 };
 
+export const getUpcomingEventById = async (req: Request, res: Response) => {
+  try {
+    if (!isDatabaseConnected()) {
+      sendDatabaseUnavailable(res);
+      return;
+    }
+
+    const event = await upcomingEventModel.findById(req.params.id);
+
+    if (!event) {
+      return res.status(404).json({ message: "Upcoming event not found" });
+    }
+
+    res.status(200).json(event);
+  } catch (error) {
+    console.error("Error fetching upcoming event:", error);
+    res.status(500).json({ message: "Error fetching upcoming event", error: getErrorMessage(error) });
+  }
+};
+
 export const createUpcomingEvent = async (req: Request, res: Response) => {
   try {
     if (!isDatabaseConnected()) {

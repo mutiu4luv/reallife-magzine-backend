@@ -5,6 +5,7 @@ const upcomingEvent_controller_1 = require("../controller/upcomingEvent.controll
 const uploadImage_1 = require("./uploadImage");
 const router = (0, express_1.Router)();
 router.get("/", upcomingEvent_controller_1.getUpcomingEvents);
+router.get("/:id", upcomingEvent_controller_1.getUpcomingEventById);
 router.post("/", uploadImage_1.uploadImagesField, upcomingEvent_controller_1.createUpcomingEvent);
 router.delete("/:id", upcomingEvent_controller_1.deleteUpcomingEvent);
 exports.default = router;

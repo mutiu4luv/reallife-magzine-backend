@@ -5,6 +5,7 @@ const news_controller_1 = require("../controller/news.controller");
 const uploadImage_1 = require("./uploadImage");
 const router = (0, express_1.Router)();
 router.get("/", news_controller_1.getNews);
+router.get("/:id", news_controller_1.getNewsById);
 router.post("/", uploadImage_1.uploadImageField, news_controller_1.createNews);
 router.delete("/:id", news_controller_1.deleteNews);
 exports.default = router;
