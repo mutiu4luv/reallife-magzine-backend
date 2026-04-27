@@ -10,6 +10,7 @@ const path_1 = __importDefault(require("path"));
 const dns_1 = __importDefault(require("dns"));
 const mongoose_1 = __importDefault(require("mongoose"));
 const db_1 = require("./config/db");
+const contact_routes_1 = __importDefault(require("./route/contact.routes"));
 const post_routes_1 = __importDefault(require("./route/post.routes"));
 const upcomingEvent_routes_1 = __importDefault(require("./route/upcomingEvent.routes"));
 dns_1.default.setDefaultResultOrder("ipv4first");
@@ -59,6 +60,7 @@ const requireDatabase = async (_req, res, next) => {
 };
 app.use("/api/posts", requireDatabase, post_routes_1.default);
 app.use("/api/upcoming-events", requireDatabase, upcomingEvent_routes_1.default);
+app.use("/api/contact", requireDatabase, contact_routes_1.default);
 app.use((error, _req, res, next) => {
     if (error instanceof SyntaxError && "body" in error) {
         res

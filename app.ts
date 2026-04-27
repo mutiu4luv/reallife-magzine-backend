@@ -6,6 +6,7 @@ import path from "path";
 import dns from "dns";
 import mongoose from "mongoose";
 import { connectDB } from "./config/db";
+import contactRoutes from "./route/contact.routes";
 import postRoutes from "./route/post.routes";
 import upcomingEventRoutes from "./route/upcomingEvent.routes";
 
@@ -67,6 +68,7 @@ const requireDatabase = async (_req: Request, res: Response, next: NextFunction)
 
 app.use("/api/posts", requireDatabase, postRoutes);
 app.use("/api/upcoming-events", requireDatabase, upcomingEventRoutes);
+app.use("/api/contact", requireDatabase, contactRoutes);
 
 app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
   if (error instanceof SyntaxError && "body" in error) {
