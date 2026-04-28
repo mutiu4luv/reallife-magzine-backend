@@ -13,6 +13,7 @@ const contact_routes_1 = __importDefault(require("./route/contact.routes"));
 const post_routes_1 = __importDefault(require("./route/post.routes"));
 const upcomingEvent_routes_1 = __importDefault(require("./route/upcomingEvent.routes"));
 const news_routes_1 = __importDefault(require("./route/news.routes"));
+const pastEdition_routes_1 = __importDefault(require("./route/pastEdition.routes"));
 dns_1.default.setDefaultResultOrder("ipv4first");
 dotenv_1.default.config();
 dotenv_1.default.config({ path: path_1.default.resolve(__dirname, "../.env") });
@@ -76,6 +77,7 @@ app.use("/api/posts", requireDatabase, post_routes_1.default);
 app.use("/api/upcoming-events", requireDatabase, upcomingEvent_routes_1.default);
 app.use("/api/events", requireDatabase, upcomingEvent_routes_1.default);
 app.use("/api/news", requireDatabase, news_routes_1.default);
+app.use("/api/past-editions", requireDatabase, pastEdition_routes_1.default);
 app.use("/api/contact", requireDatabase, contact_routes_1.default);
 app.use((error, _req, res, next) => {
     if (error instanceof SyntaxError && "body" in error) {
