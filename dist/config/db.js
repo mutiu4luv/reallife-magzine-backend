@@ -3,10 +3,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.connectDB = void 0;
+exports.connectDB = exports.getDatabaseStatus = void 0;
 const mongoose_1 = __importDefault(require("mongoose"));
 let connectionPromise = null;
 let hasRegisteredConnectionListeners = false;
+let lastConnectionError = null;
 const registerConnectionListeners = () => {
     if (hasRegisteredConnectionListeners) {
         return;
@@ -25,6 +26,29 @@ const registerConnectionListeners = () => {
         console.error("MongoDB connection error", error);
     });
 };
+const getDatabaseStatus = () => ({
+    configured: Boolean(process.env.MONGO_URI?.trim()),
+    connected: mongoose_1.default.connection.readyState === 1,
+    readyState: mongoose_1.default.connection.readyState,
+    lastError: lastConnectionError,
+});
+exports.getDatabaseStatus = getDatabaseStatus;
+const getMongoUri = () => {
+    const mongoUri = process.env.MONGO_URI?.trim();
+    if (!mongoUri) {
+        throw new Error("MONGO_URI is missing from environment variables");
+    }
+    const databaseName = process.env.MONGO_DB_NAME?.trim();
+    if (!databaseName) {
+        return mongoUri;
+    }
+    const parsedUri = new URL(mongoUri);
+    if (parsedUri.pathname && parsedUri.pathname !== "/") {
+        return mongoUri;
+    }
+    parsedUri.pathname = `/${databaseName}`;
+    return parsedUri.toString();
+};
 const connectDB = async () => {
     if (mongoose_1.default.connection.readyState === 1) {
         return mongoose_1.default;
@@ -32,10 +56,7 @@ const connectDB = async () => {
     if (connectionPromise) {
         return connectionPromise;
     }
-    const mongoUri = process.env.MONGO_URI?.trim();
-    if (!mongoUri) {
-        throw new Error("MONGO_URI is missing from environment variables");
-    }
+    const mongoUri = getMongoUri();
     registerConnectionListeners();
     mongoose_1.default.set("bufferCommands", true);
     connectionPromise = mongoose_1.default
@@ -49,10 +70,12 @@ const connectDB = async () => {
     })
         .then((mongooseInstance) => {
         connectionPromise = null;
+        lastConnectionError = null;
         return mongooseInstance;
     })
         .catch((error) => {
         connectionPromise = null;
+        lastConnectionError = error instanceof Error ? error.message : "Unknown MongoDB connection error";
         throw error;
     });
     return connectionPromise;

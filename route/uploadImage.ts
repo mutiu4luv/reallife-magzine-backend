@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import multer from "multer";
+import type { UploadedFile } from "../utils/imageUpload";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -35,8 +36,26 @@ export const uploadImageField = (req: Request, res: Response, next: NextFunction
 };
 
 export const uploadImagesField = (req: Request, res: Response, next: NextFunction) => {
-  upload.array("images", 10)(req, res, (error: unknown) => {
+  upload.fields([
+    { name: "images", maxCount: 10 },
+    { name: "image", maxCount: 10 },
+  ])(req, res, (error: unknown) => {
     if (!error) {
+      const requestWithFiles = req as Request & {
+        files?: Record<string, UploadedFile[]> | UploadedFile[];
+      };
+      const filesByField = (requestWithFiles.files || {}) as Record<string, UploadedFile[]>;
+      const files = [
+        ...(filesByField.images || []),
+        ...(filesByField.image || []),
+      ];
+
+      if (files.length > 10) {
+        res.status(400).json({ message: "Upload 10 images or fewer" });
+        return;
+      }
+
+      (req as Request & { files: UploadedFile[] }).files = files;
       next();
       return;
     }

@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 let connectionPromise: Promise<typeof mongoose> | null = null;
 let hasRegisteredConnectionListeners = false;
+let lastConnectionError: string | null = null;
 
 const registerConnectionListeners = () => {
   if (hasRegisteredConnectionListeners) {
@@ -27,6 +28,36 @@ const registerConnectionListeners = () => {
   });
 };
 
+export const getDatabaseStatus = () => ({
+  configured: Boolean(process.env.MONGO_URI?.trim()),
+  connected: mongoose.connection.readyState === 1,
+  readyState: mongoose.connection.readyState,
+  lastError: lastConnectionError,
+});
+
+const getMongoUri = () => {
+  const mongoUri = process.env.MONGO_URI?.trim();
+
+  if (!mongoUri) {
+    throw new Error("MONGO_URI is missing from environment variables");
+  }
+
+  const databaseName = process.env.MONGO_DB_NAME?.trim();
+
+  if (!databaseName) {
+    return mongoUri;
+  }
+
+  const parsedUri = new URL(mongoUri);
+
+  if (parsedUri.pathname && parsedUri.pathname !== "/") {
+    return mongoUri;
+  }
+
+  parsedUri.pathname = `/${databaseName}`;
+  return parsedUri.toString();
+};
+
 export const connectDB = async () => {
   if (mongoose.connection.readyState === 1) {
     return mongoose;
@@ -36,11 +67,7 @@ export const connectDB = async () => {
     return connectionPromise;
   }
 
-  const mongoUri = process.env.MONGO_URI?.trim();
-
-  if (!mongoUri) {
-    throw new Error("MONGO_URI is missing from environment variables");
-  }
+  const mongoUri = getMongoUri();
 
   registerConnectionListeners();
   mongoose.set("bufferCommands", true);
@@ -56,10 +83,12 @@ export const connectDB = async () => {
     })
     .then((mongooseInstance) => {
       connectionPromise = null;
+      lastConnectionError = null;
       return mongooseInstance;
     })
     .catch((error) => {
       connectionPromise = null;
+      lastConnectionError = error instanceof Error ? error.message : "Unknown MongoDB connection error";
       throw error;
     });
 

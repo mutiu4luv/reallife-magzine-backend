@@ -8,7 +8,6 @@ const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = __importDefault(require("path"));
 const dns_1 = __importDefault(require("dns"));
-const mongoose_1 = __importDefault(require("mongoose"));
 const db_1 = require("./config/db");
 const contact_routes_1 = __importDefault(require("./route/contact.routes"));
 const post_routes_1 = __importDefault(require("./route/post.routes"));
@@ -41,11 +40,7 @@ app.use("/uploads", express_1.default.static(path_1.default.resolve(process.cwd(
 app.get("/api/health", (_, res) => {
     res.json({
         status: "ok",
-        database: {
-            configured: Boolean(process.env.MONGO_URI?.trim()),
-            connected: mongoose_1.default.connection.readyState === 1,
-            readyState: mongoose_1.default.connection.readyState,
-        },
+        database: (0, db_1.getDatabaseStatus)(),
         environment: process.env.NODE_ENV || "development",
     });
 });

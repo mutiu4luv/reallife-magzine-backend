@@ -35,8 +35,22 @@ const uploadImageField = (req, res, next) => {
 };
 exports.uploadImageField = uploadImageField;
 const uploadImagesField = (req, res, next) => {
-    upload.array("images", 10)(req, res, (error) => {
+    upload.fields([
+        { name: "images", maxCount: 10 },
+        { name: "image", maxCount: 10 },
+    ])(req, res, (error) => {
         if (!error) {
+            const requestWithFiles = req;
+            const filesByField = (requestWithFiles.files || {});
+            const files = [
+                ...(filesByField.images || []),
+                ...(filesByField.image || []),
+            ];
+            if (files.length > 10) {
+                res.status(400).json({ message: "Upload 10 images or fewer" });
+                return;
+            }
+            req.files = files;
             next();
             return;
         }
