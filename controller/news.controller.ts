@@ -60,6 +60,45 @@ export const createNews = async (req: Request, res: Response) => {
   }
 };
 
+export const updateNews = async (req: Request, res: Response) => {
+  try {
+    const existingNews = await newsModel.findById(req.params.id);
+
+    if (!existingNews) {
+      return res.status(404).json({ message: "News item not found" });
+    }
+
+    const { title, description, imageUrl, image } = req.body;
+    const file = (req as Request & { file?: UploadedFile }).file;
+    const imageSource = imageUrl || image;
+
+    if (title !== undefined && !title?.trim()) {
+      return res.status(400).json({ message: "Title cannot be empty" });
+    }
+
+    if (description !== undefined && !description?.trim()) {
+      return res.status(400).json({ message: "Description cannot be empty" });
+    }
+
+    const uploadedImageUrl = await uploadImage("reality_life_news", file, imageSource);
+
+    existingNews.set({
+      title: title === undefined ? existingNews.title : title.trim(),
+      description: description === undefined ? existingNews.description : description.trim(),
+      image: uploadedImageUrl || existingNews.image,
+    });
+
+    const updatedNews = await existingNews.save();
+    res.status(200).json(updatedNews);
+  } catch (error) {
+    console.error("Error updating news:", error);
+    const errorMessage = getErrorMessage(error);
+    const statusCode = errorMessage.toLowerCase().includes("timeout") ? 504 : 500;
+
+    res.status(statusCode).json({ message: "Error updating news", error: errorMessage });
+  }
+};
+
 export const deleteNews = async (req: Request, res: Response) => {
   try {
     const deletedNews = await newsModel.findByIdAndDelete(req.params.id);

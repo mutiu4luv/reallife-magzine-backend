@@ -7,5 +7,7 @@ const router = (0, express_1.Router)();
 router.get("/", upcomingEvent_controller_1.getUpcomingEvents);
 router.get("/:id", upcomingEvent_controller_1.getUpcomingEventById);
 router.post("/", uploadImage_1.uploadImagesField, upcomingEvent_controller_1.createUpcomingEvent);
+router.put("/:id", uploadImage_1.uploadImagesField, upcomingEvent_controller_1.updateUpcomingEvent);
+router.patch("/:id", uploadImage_1.uploadImagesField, upcomingEvent_controller_1.updateUpcomingEvent);
 router.delete("/:id", upcomingEvent_controller_1.deleteUpcomingEvent);
 exports.default = router;

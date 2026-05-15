@@ -61,6 +61,50 @@ export const createPost = async (req: Request, res: Response) => {
   }
 };
 
+export const updatePost = async (req: Request, res: Response) => {
+  try {
+    const existingPost = await postModel.findById(req.params.id);
+
+    if (!existingPost) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    const { title, type, desc, imageUrl, image } = req.body;
+    const file = (req as Request & { file?: UploadedFile }).file;
+    const imageSource = imageUrl || image;
+
+    if (title !== undefined && !title?.trim()) {
+      return res.status(400).json({ message: "Title cannot be empty" });
+    }
+
+    if (desc !== undefined && !desc?.trim()) {
+      return res.status(400).json({ message: "Description cannot be empty" });
+    }
+
+    if (type !== undefined && !["Magazine", "Book"].includes(type)) {
+      return res.status(400).json({ message: "Type must be Magazine or Book" });
+    }
+
+    const uploadedImageUrl = await uploadImage("reality_life_posts", file, imageSource);
+
+    existingPost.set({
+      title: title === undefined ? existingPost.title : title.trim(),
+      type: type === undefined ? existingPost.type : type,
+      desc: desc === undefined ? existingPost.desc : desc.trim(),
+      image: uploadedImageUrl || existingPost.image,
+    });
+
+    const updatedPost = await existingPost.save();
+    res.status(200).json(updatedPost);
+  } catch (error) {
+    console.error("Error updating post:", error);
+    const errorMessage = getErrorMessage(error);
+    const statusCode = errorMessage.toLowerCase().includes("timeout") ? 504 : 500;
+
+    res.status(statusCode).json({ message: "Error updating post", error: errorMessage });
+  }
+};
+
 export const deletePost = async (req: Request, res: Response) => {
   try {
     const deletedPost = await postModel.findByIdAndDelete(req.params.id);

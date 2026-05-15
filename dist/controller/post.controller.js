@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deletePost = exports.createPost = exports.getPostById = exports.getPosts = void 0;
+exports.deletePost = exports.updatePost = exports.createPost = exports.getPostById = exports.getPosts = void 0;
 const post_model_1 = __importDefault(require("../model/post.model"));
 const imageUpload_1 = require("../utils/imageUpload");
 const getPosts = async (_, res) => {
@@ -61,6 +61,42 @@ const createPost = async (req, res) => {
     }
 };
 exports.createPost = createPost;
+const updatePost = async (req, res) => {
+    try {
+        const existingPost = await post_model_1.default.findById(req.params.id);
+        if (!existingPost) {
+            return res.status(404).json({ message: "Post not found" });
+        }
+        const { title, type, desc, imageUrl, image } = req.body;
+        const file = req.file;
+        const imageSource = imageUrl || image;
+        if (title !== undefined && !title?.trim()) {
+            return res.status(400).json({ message: "Title cannot be empty" });
+        }
+        if (desc !== undefined && !desc?.trim()) {
+            return res.status(400).json({ message: "Description cannot be empty" });
+        }
+        if (type !== undefined && !["Magazine", "Book"].includes(type)) {
+            return res.status(400).json({ message: "Type must be Magazine or Book" });
+        }
+        const uploadedImageUrl = await (0, imageUpload_1.uploadImage)("reality_life_posts", file, imageSource);
+        existingPost.set({
+            title: title === undefined ? existingPost.title : title.trim(),
+            type: type === undefined ? existingPost.type : type,
+            desc: desc === undefined ? existingPost.desc : desc.trim(),
+            image: uploadedImageUrl || existingPost.image,
+        });
+        const updatedPost = await existingPost.save();
+        res.status(200).json(updatedPost);
+    }
+    catch (error) {
+        console.error("Error updating post:", error);
+        const errorMessage = (0, imageUpload_1.getErrorMessage)(error);
+        const statusCode = errorMessage.toLowerCase().includes("timeout") ? 504 : 500;
+        res.status(statusCode).json({ message: "Error updating post", error: errorMessage });
+    }
+};
+exports.updatePost = updatePost;
 const deletePost = async (req, res) => {
     try {
         const deletedPost = await post_model_1.default.findByIdAndDelete(req.params.id);

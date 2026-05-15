@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteNews = exports.createNews = exports.getNewsById = exports.getNews = void 0;
+exports.deleteNews = exports.updateNews = exports.createNews = exports.getNewsById = exports.getNews = void 0;
 const news_model_1 = __importDefault(require("../model/news.model"));
 const imageUpload_1 = require("../utils/imageUpload");
 const getNews = async (_, res) => {
@@ -60,6 +60,38 @@ const createNews = async (req, res) => {
     }
 };
 exports.createNews = createNews;
+const updateNews = async (req, res) => {
+    try {
+        const existingNews = await news_model_1.default.findById(req.params.id);
+        if (!existingNews) {
+            return res.status(404).json({ message: "News item not found" });
+        }
+        const { title, description, imageUrl, image } = req.body;
+        const file = req.file;
+        const imageSource = imageUrl || image;
+        if (title !== undefined && !title?.trim()) {
+            return res.status(400).json({ message: "Title cannot be empty" });
+        }
+        if (description !== undefined && !description?.trim()) {
+            return res.status(400).json({ message: "Description cannot be empty" });
+        }
+        const uploadedImageUrl = await (0, imageUpload_1.uploadImage)("reality_life_news", file, imageSource);
+        existingNews.set({
+            title: title === undefined ? existingNews.title : title.trim(),
+            description: description === undefined ? existingNews.description : description.trim(),
+            image: uploadedImageUrl || existingNews.image,
+        });
+        const updatedNews = await existingNews.save();
+        res.status(200).json(updatedNews);
+    }
+    catch (error) {
+        console.error("Error updating news:", error);
+        const errorMessage = (0, imageUpload_1.getErrorMessage)(error);
+        const statusCode = errorMessage.toLowerCase().includes("timeout") ? 504 : 500;
+        res.status(statusCode).json({ message: "Error updating news", error: errorMessage });
+    }
+};
+exports.updateNews = updateNews;
 const deleteNews = async (req, res) => {
     try {
         const deletedNews = await news_model_1.default.findByIdAndDelete(req.params.id);
