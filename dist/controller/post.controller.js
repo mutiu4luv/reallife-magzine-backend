@@ -6,6 +6,36 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deletePost = exports.updatePost = exports.createPost = exports.getPostById = exports.getPosts = void 0;
 const post_model_1 = __importDefault(require("../model/post.model"));
 const imageUpload_1 = require("../utils/imageUpload");
+const parseImageList = (value) => {
+    if (Array.isArray(value)) {
+        return value.filter((item) => typeof item === "string" && item.trim().length > 0);
+    }
+    if (typeof value === "string" && value.trim()) {
+        try {
+            const parsed = JSON.parse(value);
+            if (Array.isArray(parsed)) {
+                return parsed.filter((item) => typeof item === "string" && item.trim().length > 0);
+            }
+        }
+        catch {
+            return [value.trim()];
+        }
+    }
+    return [];
+};
+const getUploadedFiles = (req) => {
+    const requestWithFiles = req;
+    return requestWithFiles.files?.length
+        ? requestWithFiles.files
+        : requestWithFiles.file
+            ? [requestWithFiles.file]
+            : [];
+};
+const uploadPostImages = async (files, imageSources) => {
+    const fileUrls = (await Promise.all(files.map((file) => (0, imageUpload_1.uploadImage)("reality_life_posts", file)))).filter((image) => Boolean(image));
+    const sourceUrls = (await Promise.all(imageSources.map((imageSource) => (0, imageUpload_1.uploadImage)("reality_life_posts", undefined, imageSource)))).filter((image) => Boolean(image));
+    return [...fileUrls, ...sourceUrls];
+};
 const getPosts = async (_, res) => {
     try {
         const posts = await post_model_1.default.find().sort({ createdAt: -1 });
@@ -33,23 +63,27 @@ const getPostById = async (req, res) => {
 exports.getPostById = getPostById;
 const createPost = async (req, res) => {
     try {
-        const { title, type, desc, imageUrl, image } = req.body;
-        const file = req.file;
-        const imageSource = imageUrl || image;
+        const { title, type, desc, imageUrl, image, imageUrls, images } = req.body;
+        const files = getUploadedFiles(req);
+        const imageSources = [
+            ...parseImageList(imageUrls || images),
+            ...parseImageList(imageUrl || image),
+        ];
         if (!title || !type || !desc) {
             return res.status(400).json({ message: "Title, type, and description are required" });
         }
-        const uploadedImageUrl = await (0, imageUpload_1.uploadImage)("reality_life_posts", file, imageSource);
-        if (!uploadedImageUrl) {
+        const uploadedImages = await uploadPostImages(files, imageSources);
+        if (!uploadedImages.length) {
             return res.status(400).json({
-                message: "Image is required. Upload a file named 'image' or provide an imageUrl.",
+                message: "Image is required. Upload files named 'images' or provide imageUrls.",
             });
         }
         const post = await post_model_1.default.create({
             title,
             type,
             desc,
-            image: uploadedImageUrl,
+            image: uploadedImages[0],
+            images: uploadedImages,
         });
         res.status(201).json(post);
     }
@@ -67,9 +101,12 @@ const updatePost = async (req, res) => {
         if (!existingPost) {
             return res.status(404).json({ message: "Post not found" });
         }
-        const { title, type, desc, imageUrl, image } = req.body;
-        const file = req.file;
-        const imageSource = imageUrl || image;
+        const { title, type, desc, imageUrl, image, imageUrls, images } = req.body;
+        const files = getUploadedFiles(req);
+        const imageSources = [
+            ...parseImageList(imageUrls || images),
+            ...parseImageList(imageUrl || image),
+        ];
         if (title !== undefined && !title?.trim()) {
             return res.status(400).json({ message: "Title cannot be empty" });
         }
@@ -79,12 +116,20 @@ const updatePost = async (req, res) => {
         if (type !== undefined && !["Magazine", "Book"].includes(type)) {
             return res.status(400).json({ message: "Type must be Magazine or Book" });
         }
-        const uploadedImageUrl = await (0, imageUpload_1.uploadImage)("reality_life_posts", file, imageSource);
+        const uploadedImages = await uploadPostImages(files, imageSources);
+        const shouldUpdateImages = uploadedImages.length > 0;
+        const currentImages = Array.isArray(existingPost.images) && existingPost.images.length
+            ? existingPost.images
+            : existingPost.image
+                ? [existingPost.image]
+                : [];
+        const nextImages = shouldUpdateImages ? uploadedImages : currentImages;
         existingPost.set({
             title: title === undefined ? existingPost.title : title.trim(),
             type: type === undefined ? existingPost.type : type,
             desc: desc === undefined ? existingPost.desc : desc.trim(),
-            image: uploadedImageUrl || existingPost.image,
+            image: nextImages[0] || existingPost.image,
+            images: nextImages,
         });
         const updatedPost = await existingPost.save();
         res.status(200).json(updatedPost);
