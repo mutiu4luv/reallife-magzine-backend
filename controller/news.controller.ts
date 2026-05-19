@@ -2,6 +2,45 @@ import { Request, Response } from "express";
 import newsModel from "../model/news.model";
 import { getErrorMessage, uploadImage, UploadedFile } from "../utils/imageUpload";
 
+const parseImageList = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+      }
+    } catch {
+      return [value.trim()];
+    }
+  }
+
+  return [];
+};
+
+const getUploadedFiles = (req: Request) => {
+  const requestWithFiles = req as Request & { file?: UploadedFile; files?: UploadedFile[] };
+  return requestWithFiles.files?.length
+    ? requestWithFiles.files
+    : requestWithFiles.file
+      ? [requestWithFiles.file]
+      : [];
+};
+
+const uploadNewsImages = async (files: UploadedFile[], imageSources: string[]) => {
+  const fileUrls = (
+    await Promise.all(files.map((file) => uploadImage("reality_life_news", file)))
+  ).filter((image): image is string => Boolean(image));
+  const sourceUrls = (
+    await Promise.all(imageSources.map((imageSource) => uploadImage("reality_life_news", undefined, imageSource)))
+  ).filter((image): image is string => Boolean(image));
+
+  return [...fileUrls, ...sourceUrls];
+};
+
 export const getNews = async (_: Request, res: Response) => {
   try {
     const news = await newsModel.find().sort({ createdAt: -1 });
@@ -29,25 +68,29 @@ export const getNewsById = async (req: Request, res: Response) => {
 
 export const createNews = async (req: Request, res: Response) => {
   try {
-    const { title, description, imageUrl, image } = req.body;
-    const file = (req as Request & { file?: UploadedFile }).file;
-    const imageSource = imageUrl || image;
+    const { title, description, imageUrl, image, imageUrls, images } = req.body;
+    const files = getUploadedFiles(req);
+    const imageSources = [
+      ...parseImageList(imageUrls || images),
+      ...parseImageList(imageUrl || image),
+    ];
 
     if (!title?.trim() || !description?.trim()) {
       return res.status(400).json({ message: "Title and description are required" });
     }
 
-    const uploadedImageUrl = await uploadImage("reality_life_news", file, imageSource);
-    if (!uploadedImageUrl) {
+    const uploadedImages = await uploadNewsImages(files, imageSources);
+    if (!uploadedImages.length) {
       return res.status(400).json({
-        message: "Image is required. Upload a file named 'image' or provide an imageUrl.",
+        message: "Image is required. Upload files named 'images' or provide imageUrls.",
       });
     }
 
     const news = await newsModel.create({
       title: title.trim(),
       description: description.trim(),
-      image: uploadedImageUrl,
+      image: uploadedImages[0],
+      images: uploadedImages,
     });
 
     res.status(201).json(news);
@@ -68,9 +111,12 @@ export const updateNews = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "News item not found" });
     }
 
-    const { title, description, imageUrl, image } = req.body;
-    const file = (req as Request & { file?: UploadedFile }).file;
-    const imageSource = imageUrl || image;
+    const { title, description, imageUrl, image, imageUrls, images } = req.body;
+    const files = getUploadedFiles(req);
+    const imageSources = [
+      ...parseImageList(imageUrls || images),
+      ...parseImageList(imageUrl || image),
+    ];
 
     if (title !== undefined && !title?.trim()) {
       return res.status(400).json({ message: "Title cannot be empty" });
@@ -80,12 +126,20 @@ export const updateNews = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Description cannot be empty" });
     }
 
-    const uploadedImageUrl = await uploadImage("reality_life_news", file, imageSource);
+    const uploadedImages = await uploadNewsImages(files, imageSources);
+    const shouldUpdateImages = uploadedImages.length > 0;
+    const currentImages = Array.isArray(existingNews.images) && existingNews.images.length
+      ? existingNews.images
+      : existingNews.image
+        ? [existingNews.image]
+        : [];
+    const nextImages = shouldUpdateImages ? uploadedImages : currentImages;
 
     existingNews.set({
       title: title === undefined ? existingNews.title : title.trim(),
       description: description === undefined ? existingNews.description : description.trim(),
-      image: uploadedImageUrl || existingNews.image,
+      image: nextImages[0] || existingNews.image,
+      images: nextImages,
     });
 
     const updatedNews = await existingNews.save();

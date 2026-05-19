@@ -6,6 +6,7 @@ const postSchema = new Schema(
     type: { type: String, enum: ["Magazine", "Book"], required: true },
     desc: { type: String, required: true },
     image: { type: String, required: true },
+    images: { type: [String], default: [] },
   },
   { timestamps: true }
 );

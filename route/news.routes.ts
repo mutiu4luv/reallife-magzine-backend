@@ -1,14 +1,14 @@
 import { Router } from "express";
 import { createNews, deleteNews, getNews, getNewsById, updateNews } from "../controller/news.controller";
-import { uploadImageField } from "./uploadImage";
+import { uploadImagesField } from "./uploadImage";
 
 const router = Router();
 
 router.get("/", getNews);
 router.get("/:id", getNewsById);
-router.post("/", uploadImageField, createNews);
-router.put("/:id", uploadImageField, updateNews);
-router.patch("/:id", uploadImageField, updateNews);
+router.post("/", uploadImagesField, createNews);
+router.put("/:id", uploadImagesField, updateNews);
+router.patch("/:id", uploadImagesField, updateNews);
 router.delete("/:id", deleteNews);
 
 export default router;
