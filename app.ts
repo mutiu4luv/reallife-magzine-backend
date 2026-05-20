@@ -10,6 +10,9 @@ import postRoutes from "./route/post.routes";
 import upcomingEventRoutes from "./route/upcomingEvent.routes";
 import newsRoutes from "./route/news.routes";
 import pastEditionRoutes from "./route/pastEdition.routes";
+import interviewRoutes from "./route/interview.routes";
+import photoGalleryRoutes from "./route/photoGallery.routes";
+import testimonyRoutes from "./route/testimony.routes";
 
 dns.setDefaultResultOrder("ipv4first");
 
@@ -89,6 +92,12 @@ app.use("/api/events", requireDatabase, upcomingEventRoutes);
 app.use("/api/news", requireDatabase, newsRoutes);
 app.use("/api/past-editions", requireDatabase, pastEditionRoutes);
 app.use("/api/contact", requireDatabase, contactRoutes);
+app.use("/api/testimonies", requireDatabase, testimonyRoutes);
+app.use("/api/testimony", requireDatabase, testimonyRoutes);
+app.use("/api/interviews", requireDatabase, interviewRoutes);
+app.use("/api/interview-section", requireDatabase, interviewRoutes);
+app.use("/api/photo-gallery", requireDatabase, photoGalleryRoutes);
+app.use("/api/photogallery", requireDatabase, photoGalleryRoutes);
 
 app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
   if (error instanceof SyntaxError && "body" in error) {
