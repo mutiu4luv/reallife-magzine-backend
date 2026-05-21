@@ -83,6 +83,40 @@ export const createTestimony = async (req: Request, res: Response) => {
   }
 };
 
+export const updateTestimony = async (req: Request, res: Response) => {
+  try {
+    const { name, message, imageUrl } = req.body;
+    const images = await uploadSectionImages("reality_life_testimonies", getUploadedFiles(req), imageUrl ? [imageUrl] : []);
+
+    if (!name?.trim() || !message?.trim()) {
+      return res.status(400).json({ message: "Name and message are required" });
+    }
+
+    const update: Record<string, unknown> = {
+      name: name.trim(),
+      message: message.trim(),
+      isActive: parseBoolean(req.body.isActive),
+    };
+
+    if (images.length) {
+      update.image = images[0];
+    }
+
+    const testimony = await testimonyModel.findByIdAndUpdate(req.params.id, update, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!testimony) {
+      return res.status(404).json({ message: "Testimony not found" });
+    }
+
+    res.status(200).json(testimony);
+  } catch (error) {
+    res.status(500).json({ message: "Error updating testimony", error: getErrorMessage(error) });
+  }
+};
+
 export const deleteTestimony = async (req: Request, res: Response) => {
   try {
     const testimony = await testimonyModel.findByIdAndDelete(req.params.id);
@@ -128,6 +162,43 @@ export const createInterview = async (req: Request, res: Response) => {
     res.status(201).json(interview);
   } catch (error) {
     res.status(500).json({ message: "Error creating interview", error: getErrorMessage(error) });
+  }
+};
+
+export const updateInterview = async (req: Request, res: Response) => {
+  try {
+    const { name, role, message, imageUrl } = req.body;
+    const qa = parseQa(req.body.qa);
+    const images = await uploadSectionImages("reality_life_interviews", getUploadedFiles(req), imageUrl ? [imageUrl] : []);
+
+    if (!name?.trim() || !role?.trim() || !qa.length) {
+      return res.status(400).json({ message: "Name, role, and at least one Q&A are required" });
+    }
+
+    const update: Record<string, unknown> = {
+      name: name.trim(),
+      role: role.trim(),
+      message: typeof message === "string" ? message.trim() : "",
+      qa,
+      isActive: parseBoolean(req.body.isActive),
+    };
+
+    if (images.length) {
+      update.image = images[0];
+    }
+
+    const interview = await interviewModel.findByIdAndUpdate(req.params.id, update, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!interview) {
+      return res.status(404).json({ message: "Interview not found" });
+    }
+
+    res.status(200).json(interview);
+  } catch (error) {
+    res.status(500).json({ message: "Error updating interview", error: getErrorMessage(error) });
   }
 };
 
