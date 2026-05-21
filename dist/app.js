@@ -14,6 +14,9 @@ const post_routes_1 = __importDefault(require("./route/post.routes"));
 const upcomingEvent_routes_1 = __importDefault(require("./route/upcomingEvent.routes"));
 const news_routes_1 = __importDefault(require("./route/news.routes"));
 const pastEdition_routes_1 = __importDefault(require("./route/pastEdition.routes"));
+const interview_routes_1 = __importDefault(require("./route/interview.routes"));
+const photoGallery_routes_1 = __importDefault(require("./route/photoGallery.routes"));
+const testimony_routes_1 = __importDefault(require("./route/testimony.routes"));
 dns_1.default.setDefaultResultOrder("ipv4first");
 dotenv_1.default.config();
 dotenv_1.default.config({ path: path_1.default.resolve(__dirname, "../.env") });
@@ -79,6 +82,12 @@ app.use("/api/events", requireDatabase, upcomingEvent_routes_1.default);
 app.use("/api/news", requireDatabase, news_routes_1.default);
 app.use("/api/past-editions", requireDatabase, pastEdition_routes_1.default);
 app.use("/api/contact", requireDatabase, contact_routes_1.default);
+app.use("/api/testimonies", requireDatabase, testimony_routes_1.default);
+app.use("/api/testimony", requireDatabase, testimony_routes_1.default);
+app.use("/api/interviews", requireDatabase, interview_routes_1.default);
+app.use("/api/interview-section", requireDatabase, interview_routes_1.default);
+app.use("/api/photo-gallery", requireDatabase, photoGallery_routes_1.default);
+app.use("/api/photogallery", requireDatabase, photoGallery_routes_1.default);
 app.use((error, _req, res, next) => {
     if (error instanceof SyntaxError && "body" in error) {
         res

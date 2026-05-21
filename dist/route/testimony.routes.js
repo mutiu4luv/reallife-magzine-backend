@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const homeSection_controller_1 = require("../controller/homeSection.controller");
+const uploadImage_1 = require("./uploadImage");
+const router = (0, express_1.Router)();
+router.get("/", homeSection_controller_1.getTestimonies);
+router.post("/", uploadImage_1.uploadImagesField, homeSection_controller_1.createTestimony);
+router.put("/:id", uploadImage_1.uploadImagesField, homeSection_controller_1.updateTestimony);
+router.patch("/:id", uploadImage_1.uploadImagesField, homeSection_controller_1.updateTestimony);
+router.delete("/:id", homeSection_controller_1.deleteTestimony);
+exports.default = router;
