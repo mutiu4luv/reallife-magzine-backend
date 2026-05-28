@@ -17,6 +17,7 @@ const pastEdition_routes_1 = __importDefault(require("./route/pastEdition.routes
 const interview_routes_1 = __importDefault(require("./route/interview.routes"));
 const photoGallery_routes_1 = __importDefault(require("./route/photoGallery.routes"));
 const testimony_routes_1 = __importDefault(require("./route/testimony.routes"));
+const auth_routes_1 = __importDefault(require("./route/auth.routes"));
 dns_1.default.setDefaultResultOrder("ipv4first");
 dotenv_1.default.config();
 dotenv_1.default.config({ path: path_1.default.resolve(__dirname, "../.env") });
@@ -77,6 +78,7 @@ const requireDatabase = async (_req, res, next) => {
     }
 };
 app.use("/api/posts", requireDatabase, post_routes_1.default);
+app.use("/api/auth", requireDatabase, auth_routes_1.default);
 app.use("/api/upcoming-events", requireDatabase, upcomingEvent_routes_1.default);
 app.use("/api/events", requireDatabase, upcomingEvent_routes_1.default);
 app.use("/api/news", requireDatabase, news_routes_1.default);

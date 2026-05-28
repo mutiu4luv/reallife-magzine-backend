@@ -7,14 +7,15 @@ import {
   updateUpcomingEvent,
 } from "../controller/upcomingEvent.controller";
 import { uploadImagesField } from "./uploadImage";
+import { requireAdmin } from "../utils/auth";
 
 const router = Router();
 
 router.get("/", getUpcomingEvents);
 router.get("/:id", getUpcomingEventById);
-router.post("/", uploadImagesField, createUpcomingEvent);
-router.put("/:id", uploadImagesField, updateUpcomingEvent);
-router.patch("/:id", uploadImagesField, updateUpcomingEvent);
-router.delete("/:id", deleteUpcomingEvent);
+router.post("/", requireAdmin, uploadImagesField, createUpcomingEvent);
+router.put("/:id", requireAdmin, uploadImagesField, updateUpcomingEvent);
+router.patch("/:id", requireAdmin, uploadImagesField, updateUpcomingEvent);
+router.delete("/:id", requireAdmin, deleteUpcomingEvent);
 
 export default router;

@@ -13,6 +13,7 @@ import pastEditionRoutes from "./route/pastEdition.routes";
 import interviewRoutes from "./route/interview.routes";
 import photoGalleryRoutes from "./route/photoGallery.routes";
 import testimonyRoutes from "./route/testimony.routes";
+import authRoutes from "./route/auth.routes";
 
 dns.setDefaultResultOrder("ipv4first");
 
@@ -87,6 +88,7 @@ const requireDatabase = async (_req: Request, res: Response, next: NextFunction)
 };
 
 app.use("/api/posts", requireDatabase, postRoutes);
+app.use("/api/auth", requireDatabase, authRoutes);
 app.use("/api/upcoming-events", requireDatabase, upcomingEventRoutes);
 app.use("/api/events", requireDatabase, upcomingEventRoutes);
 app.use("/api/news", requireDatabase, newsRoutes);
