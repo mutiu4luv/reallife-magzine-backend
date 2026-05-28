@@ -12,13 +12,21 @@ const userSchema = new mongoose_1.Schema({
     passwordHash: { type: String, required: true },
     address: { type: String, required: true, trim: true },
     state: { type: String, required: true, trim: true },
-    role: { type: String, enum: ["user", "admin"], default: "user" },
+    role: { type: String, enum: ["user", "blogger", "admin"], default: "user" },
+    permissions: { type: [String], default: [] },
     adminRequestStatus: {
         type: String,
         enum: ["none", "pending", "approved", "rejected"],
         default: "none",
     },
     adminRequestedAt: { type: Date },
+    permissionRequestStatus: {
+        type: String,
+        enum: ["none", "pending", "approved", "rejected"],
+        default: "none",
+    },
+    requestedPermissions: { type: [String], default: [] },
+    permissionRequestedAt: { type: Date },
     authTokens: { type: [authTokenSchema], default: [] },
 }, { timestamps: true });
 exports.default = (0, mongoose_1.model)("User", userSchema);

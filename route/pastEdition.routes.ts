@@ -5,12 +5,12 @@ import {
   getPastEditions,
 } from "../controller/pastEdition.controller";
 import { uploadImagesField } from "./uploadImage";
-import { requireAdmin } from "../utils/auth";
+import { auditAction, requirePermission } from "../utils/auth";
 
 const router = Router();
 
 router.get("/", getPastEditions);
-router.post("/", requireAdmin, uploadImagesField, createPastEditions);
-router.delete("/:id", requireAdmin, deletePastEdition);
+router.post("/", requirePermission("pastEditions:create"), auditAction("pastEditions", "create"), uploadImagesField, createPastEditions);
+router.delete("/:id", requirePermission("pastEditions:delete"), auditAction("pastEditions", "delete"), deletePastEdition);
 
 export default router;

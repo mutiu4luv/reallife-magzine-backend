@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { NextFunction, Request, Response } from "express";
 import userModel from "../model/user.model";
+import auditLogModel from "../model/auditLog.model";
 
 const PASSWORD_ITERATIONS = 120000;
 const PASSWORD_KEY_LENGTH = 64;
@@ -11,8 +12,11 @@ export type AuthUser = {
   name: string;
   email: string;
   phonenumber: string;
-  role: "user" | "admin";
+  role: "user" | "blogger" | "admin";
+  permissions: string[];
   adminRequestStatus: "none" | "pending" | "approved" | "rejected";
+  permissionRequestStatus: "none" | "pending" | "approved" | "rejected";
+  requestedPermissions: string[];
 };
 
 export type AuthenticatedRequest = Request & {
@@ -60,7 +64,10 @@ export const sanitizeUser = (user: AuthUser) => ({
   email: user.email,
   phonenumber: user.phonenumber,
   role: user.role,
+  permissions: user.role === "admin" || user.role === "blogger" ? ["*"] : user.permissions || [],
   adminRequestStatus: user.adminRequestStatus,
+  permissionRequestStatus: user.permissionRequestStatus,
+  requestedPermissions: user.requestedPermissions || [],
 });
 
 const getBearerToken = (req: Request) => {
@@ -105,4 +112,59 @@ export const requireAdmin = async (req: AuthenticatedRequest, res: Response, nex
 
     next();
   });
+};
+
+export const hasPermission = (user: AuthUser | undefined, permission: string) =>
+  user?.role === "admin" || user?.role === "blogger" || Boolean(user?.permissions?.includes(permission));
+
+export const requirePermission = (permission: string) => async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  await requireAuth(req, res, () => {
+    if (!hasPermission(req.user, permission)) {
+      res.status(403).json({ message: `Permission required: ${permission}` });
+      return;
+    }
+
+    next();
+  });
+};
+
+export const writeAuditLog = async (
+  req: AuthenticatedRequest,
+  action: string,
+  resource: string,
+  metadata?: Record<string, unknown>
+) => {
+  try {
+    await auditLogModel.create({
+      actorId: req.user?._id,
+      actorName: req.user?.name || "",
+      actorEmail: req.user?.email || "",
+      action,
+      resource,
+      method: req.method,
+      path: req.originalUrl,
+      targetId: req.params?.id || "",
+      metadata,
+    });
+  } catch (error) {
+    console.error("Unable to write audit log", error);
+  }
+};
+
+export const auditAction = (resource: string, action: string) => (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  res.on("finish", () => {
+    if (res.statusCode < 400) {
+      void writeAuditLog(req, action, resource);
+    }
+  });
+
+  next();
 };

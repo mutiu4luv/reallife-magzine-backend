@@ -6,6 +6,6 @@ const uploadImage_1 = require("./uploadImage");
 const auth_1 = require("../utils/auth");
 const router = (0, express_1.Router)();
 router.get("/", homeSection_controller_1.getPhotoGallery);
-router.post("/", auth_1.requireAdmin, uploadImage_1.uploadImagesField, homeSection_controller_1.createPhotoGallery);
-router.delete("/:id", auth_1.requireAdmin, homeSection_controller_1.deletePhotoGallery);
+router.post("/", (0, auth_1.requirePermission)("photoGallery:create"), (0, auth_1.auditAction)("photoGallery", "create"), uploadImage_1.uploadImagesField, homeSection_controller_1.createPhotoGallery);
+router.delete("/:id", (0, auth_1.requirePermission)("photoGallery:delete"), (0, auth_1.auditAction)("photoGallery", "delete"), homeSection_controller_1.deletePhotoGallery);
 exports.default = router;

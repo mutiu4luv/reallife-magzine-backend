@@ -3,9 +3,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.requireAdmin = exports.requireAuth = exports.sanitizeUser = exports.createAuthToken = exports.hashToken = exports.verifyPassword = exports.hashPassword = void 0;
+exports.auditAction = exports.writeAuditLog = exports.requirePermission = exports.hasPermission = exports.requireAdmin = exports.requireAuth = exports.sanitizeUser = exports.createAuthToken = exports.hashToken = exports.verifyPassword = exports.hashPassword = void 0;
 const crypto_1 = __importDefault(require("crypto"));
 const user_model_1 = __importDefault(require("../model/user.model"));
+const auditLog_model_1 = __importDefault(require("../model/auditLog.model"));
 const PASSWORD_ITERATIONS = 120000;
 const PASSWORD_KEY_LENGTH = 64;
 const TOKEN_TTL_DAYS = 7;
@@ -43,7 +44,10 @@ const sanitizeUser = (user) => ({
     email: user.email,
     phonenumber: user.phonenumber,
     role: user.role,
+    permissions: user.role === "admin" || user.role === "blogger" ? ["*"] : user.permissions || [],
     adminRequestStatus: user.adminRequestStatus,
+    permissionRequestStatus: user.permissionRequestStatus,
+    requestedPermissions: user.requestedPermissions || [],
 });
 exports.sanitizeUser = sanitizeUser;
 const getBearerToken = (req) => {
@@ -84,3 +88,43 @@ const requireAdmin = async (req, res, next) => {
     });
 };
 exports.requireAdmin = requireAdmin;
+const hasPermission = (user, permission) => user?.role === "admin" || user?.role === "blogger" || Boolean(user?.permissions?.includes(permission));
+exports.hasPermission = hasPermission;
+const requirePermission = (permission) => async (req, res, next) => {
+    await (0, exports.requireAuth)(req, res, () => {
+        if (!(0, exports.hasPermission)(req.user, permission)) {
+            res.status(403).json({ message: `Permission required: ${permission}` });
+            return;
+        }
+        next();
+    });
+};
+exports.requirePermission = requirePermission;
+const writeAuditLog = async (req, action, resource, metadata) => {
+    try {
+        await auditLog_model_1.default.create({
+            actorId: req.user?._id,
+            actorName: req.user?.name || "",
+            actorEmail: req.user?.email || "",
+            action,
+            resource,
+            method: req.method,
+            path: req.originalUrl,
+            targetId: req.params?.id || "",
+            metadata,
+        });
+    }
+    catch (error) {
+        console.error("Unable to write audit log", error);
+    }
+};
+exports.writeAuditLog = writeAuditLog;
+const auditAction = (resource, action) => (req, res, next) => {
+    res.on("finish", () => {
+        if (res.statusCode < 400) {
+            void (0, exports.writeAuditLog)(req, action, resource);
+        }
+    });
+    next();
+};
+exports.auditAction = auditAction;
