@@ -17,6 +17,7 @@ router.patch("/admin-requests/:id", auth_1.requireAdmin, auth_controller_1.resol
 router.get("/permission-requests", auth_1.requireAdmin, auth_controller_1.getPermissionRequests);
 router.patch("/permission-requests/:id", auth_1.requireAdmin, auth_controller_1.resolvePermissionRequest);
 router.get("/users", auth_1.requireAdmin, auth_controller_1.getUsers);
+router.patch("/users/:id/role", auth_1.requireAdmin, auth_controller_1.updateUserRole);
 router.delete("/users/:id", auth_1.requireAdmin, auth_controller_1.deleteUser);
 router.get("/audit-logs", auth_1.requireAdmin, auth_controller_1.getAuditLogs);
 exports.default = router;

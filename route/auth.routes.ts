@@ -15,6 +15,7 @@ import {
   requestPermissions,
   resolveAdminRequest,
   resolvePermissionRequest,
+  updateUserRole,
 } from "../controller/auth.controller";
 import { requireAdmin, requireAuth } from "../utils/auth";
 
@@ -33,6 +34,7 @@ router.patch("/admin-requests/:id", requireAdmin, resolveAdminRequest);
 router.get("/permission-requests", requireAdmin, getPermissionRequests);
 router.patch("/permission-requests/:id", requireAdmin, resolvePermissionRequest);
 router.get("/users", requireAdmin, getUsers);
+router.patch("/users/:id/role", requireAdmin, updateUserRole);
 router.delete("/users/:id", requireAdmin, deleteUser);
 router.get("/audit-logs", requireAdmin, getAuditLogs);
 

@@ -347,6 +347,45 @@ export const deleteUser = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
+export const updateUserRole = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const role = normalizeText(req.body.role).toLowerCase();
+
+    if (!["user", "blogger"].includes(role)) {
+      return res.status(400).json({ message: "Role must be user or blogger." });
+    }
+
+    if (String(req.user?._id) === req.params.id) {
+      return res.status(400).json({ message: "Admins cannot change their own role." });
+    }
+
+    const targetUser = await userModel.findById(req.params.id);
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    if (targetUser.role === "admin") {
+      return res.status(400).json({ message: "Admin accounts cannot be changed here." });
+    }
+
+    targetUser.set({
+      role,
+      permissions: role === "blogger" ? [...ALL_PERMISSIONS] : [],
+      requestedPermissions: [],
+      permissionRequestStatus: role === "blogger" ? "approved" : "none",
+    });
+    await targetUser.save();
+
+    await writeAuditLog(req, role === "blogger" ? "promote_blogger" : "demote_blogger", "users", {
+      targetUserId: req.params.id,
+    });
+
+    res.status(200).json({ user: getPublicUser(targetUser) });
+  } catch (error) {
+    res.status(500).json({ message: "Unable to update user role.", error: getErrorMessage(error) });
+  }
+};
+
 export const getAuditLogs = async (_req: AuthenticatedRequest, res: Response) => {
   try {
     const logs = await auditLogModel.find().sort({ createdAt: -1 }).limit(120);

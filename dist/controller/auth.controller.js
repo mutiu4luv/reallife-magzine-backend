@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAvailablePermissions = exports.getAuditLogs = exports.deleteUser = exports.getUsers = exports.resolvePermissionRequest = exports.resolveAdminRequest = exports.getPermissionRequests = exports.getAdminRequests = exports.requestPermissions = exports.requestAdminAccess = exports.logout = exports.getMe = exports.changePassword = exports.login = exports.register = void 0;
+exports.getAvailablePermissions = exports.getAuditLogs = exports.updateUserRole = exports.deleteUser = exports.getUsers = exports.resolvePermissionRequest = exports.resolveAdminRequest = exports.getPermissionRequests = exports.getAdminRequests = exports.requestPermissions = exports.requestAdminAccess = exports.logout = exports.getMe = exports.changePassword = exports.login = exports.register = void 0;
 const user_model_1 = __importDefault(require("../model/user.model"));
 const auditLog_model_1 = __importDefault(require("../model/auditLog.model"));
 const auth_1 = require("../utils/auth");
@@ -304,6 +304,39 @@ const deleteUser = async (req, res) => {
     }
 };
 exports.deleteUser = deleteUser;
+const updateUserRole = async (req, res) => {
+    try {
+        const role = normalizeText(req.body.role).toLowerCase();
+        if (!["user", "blogger"].includes(role)) {
+            return res.status(400).json({ message: "Role must be user or blogger." });
+        }
+        if (String(req.user?._id) === req.params.id) {
+            return res.status(400).json({ message: "Admins cannot change their own role." });
+        }
+        const targetUser = await user_model_1.default.findById(req.params.id);
+        if (!targetUser) {
+            return res.status(404).json({ message: "User not found." });
+        }
+        if (targetUser.role === "admin") {
+            return res.status(400).json({ message: "Admin accounts cannot be changed here." });
+        }
+        targetUser.set({
+            role,
+            permissions: role === "blogger" ? [...ALL_PERMISSIONS] : [],
+            requestedPermissions: [],
+            permissionRequestStatus: role === "blogger" ? "approved" : "none",
+        });
+        await targetUser.save();
+        await (0, auth_1.writeAuditLog)(req, role === "blogger" ? "promote_blogger" : "demote_blogger", "users", {
+            targetUserId: req.params.id,
+        });
+        res.status(200).json({ user: getPublicUser(targetUser) });
+    }
+    catch (error) {
+        res.status(500).json({ message: "Unable to update user role.", error: (0, imageUpload_1.getErrorMessage)(error) });
+    }
+};
+exports.updateUserRole = updateUserRole;
 const getAuditLogs = async (_req, res) => {
     try {
         const logs = await auditLog_model_1.default.find().sort({ createdAt: -1 }).limit(120);
