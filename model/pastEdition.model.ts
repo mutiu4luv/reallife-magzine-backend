@@ -4,6 +4,14 @@ const pastEditionSchema = new Schema(
   {
     title: { type: String, trim: true, default: "" },
     image: { type: String, required: true },
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date, default: null },
+    deletedBy: {
+      id: { type: String, default: "" },
+      name: { type: String, default: "" },
+      email: { type: String, default: "" },
+      role: { type: String, default: "" },
+    },
   },
   { timestamps: true }
 );

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deletePost = exports.updatePost = exports.createPost = exports.getPostById = exports.getPosts = void 0;
+exports.undoLastPostEdit = exports.permanentDeletePost = exports.restorePost = exports.getDeletedPosts = exports.deletePost = exports.updatePost = exports.createPost = exports.getPostById = exports.getPosts = void 0;
 const post_model_1 = __importDefault(require("../model/post.model"));
 const imageUpload_1 = require("../utils/imageUpload");
 const parseImageList = (value) => {
@@ -36,9 +36,15 @@ const uploadPostImages = async (files, imageSources) => {
     const sourceUrls = (await Promise.all(imageSources.map((imageSource) => (0, imageUpload_1.uploadImage)("reality_life_posts", undefined, imageSource)))).filter((image) => Boolean(image));
     return [...fileUrls, ...sourceUrls];
 };
-const getPosts = async (_, res) => {
+const getEditorMeta = (req) => ({
+    id: String(req.user?._id || ""),
+    name: req.user?.name || "",
+    email: req.user?.email || "",
+    role: req.user?.role || "",
+});
+const getPosts = async (_req, res) => {
     try {
-        const posts = await post_model_1.default.find().sort({ createdAt: -1 });
+        const posts = await post_model_1.default.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 });
         res.status(200).json(posts);
     }
     catch (error) {
@@ -49,7 +55,7 @@ const getPosts = async (_, res) => {
 exports.getPosts = getPosts;
 const getPostById = async (req, res) => {
     try {
-        const post = await post_model_1.default.findById(req.params.id);
+        const post = await post_model_1.default.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
         if (!post) {
             return res.status(404).json({ message: "Post not found" });
         }
@@ -124,12 +130,22 @@ const updatePost = async (req, res) => {
                 ? [existingPost.image]
                 : [];
         const nextImages = shouldUpdateImages ? uploadedImages : currentImages;
+        const previousVersion = {
+            title: existingPost.title,
+            type: existingPost.type,
+            desc: existingPost.desc,
+            image: existingPost.image,
+            images: Array.isArray(existingPost.images) ? existingPost.images : [],
+            editedAt: new Date(),
+            editedBy: getEditorMeta(req),
+        };
         existingPost.set({
             title: title === undefined ? existingPost.title : title.trim(),
             type: type === undefined ? existingPost.type : type,
             desc: desc === undefined ? existingPost.desc : desc.trim(),
             image: nextImages[0] || existingPost.image,
             images: nextImages,
+            editHistory: [...(existingPost.editHistory || []), previousVersion],
         });
         const updatedPost = await existingPost.save();
         res.status(200).json(updatedPost);
@@ -144,11 +160,21 @@ const updatePost = async (req, res) => {
 exports.updatePost = updatePost;
 const deletePost = async (req, res) => {
     try {
-        const deletedPost = await post_model_1.default.findByIdAndDelete(req.params.id);
-        if (!deletedPost) {
+        const post = await post_model_1.default.findById(req.params.id);
+        if (!post) {
             return res.status(404).json({ message: "Post not found" });
         }
-        res.status(200).json({ message: "Post deleted successfully", post: deletedPost });
+        if (req.user?.role === "admin") {
+            const deletedPost = await post_model_1.default.findByIdAndDelete(req.params.id);
+            return res.status(200).json({ message: "Post deleted permanently", post: deletedPost });
+        }
+        post.set({
+            isDeleted: true,
+            deletedAt: new Date(),
+            deletedBy: getEditorMeta(req),
+        });
+        await post.save();
+        res.status(200).json({ message: "Post moved to deleted review.", post });
     }
     catch (error) {
         console.error("Error deleting post:", error);
@@ -156,3 +182,85 @@ const deletePost = async (req, res) => {
     }
 };
 exports.deletePost = deletePost;
+const getDeletedPosts = async (_req, res) => {
+    try {
+        const posts = await post_model_1.default.find({ isDeleted: true }).sort({ deletedAt: -1, updatedAt: -1 });
+        res.status(200).json(posts);
+    }
+    catch (error) {
+        console.error("Error fetching deleted posts:", error);
+        res.status(500).json({ message: "Error fetching deleted posts", error: (0, imageUpload_1.getErrorMessage)(error) });
+    }
+};
+exports.getDeletedPosts = getDeletedPosts;
+const restorePost = async (req, res) => {
+    try {
+        const post = await post_model_1.default.findById(req.params.id);
+        if (!post) {
+            return res.status(404).json({ message: "Post not found" });
+        }
+        post.set({
+            isDeleted: false,
+            deletedAt: null,
+            deletedBy: { id: "", name: "", email: "", role: "" },
+        });
+        const restoredPost = await post.save();
+        res.status(200).json({ message: "Post restored successfully", post: restoredPost });
+    }
+    catch (error) {
+        console.error("Error restoring post:", error);
+        res.status(500).json({ message: "Error restoring post", error: (0, imageUpload_1.getErrorMessage)(error) });
+    }
+};
+exports.restorePost = restorePost;
+const permanentDeletePost = async (req, res) => {
+    try {
+        const deletedPost = await post_model_1.default.findByIdAndDelete(req.params.id);
+        if (!deletedPost) {
+            return res.status(404).json({ message: "Post not found" });
+        }
+        res.status(200).json({ message: "Post deleted permanently", post: deletedPost });
+    }
+    catch (error) {
+        console.error("Error permanently deleting post:", error);
+        res.status(500).json({ message: "Error permanently deleting post", error: (0, imageUpload_1.getErrorMessage)(error) });
+    }
+};
+exports.permanentDeletePost = permanentDeletePost;
+const undoLastPostEdit = async (req, res) => {
+    try {
+        const post = await post_model_1.default.findById(req.params.id);
+        if (!post) {
+            return res.status(404).json({ message: "Post not found" });
+        }
+        const history = Array.isArray(post.editHistory) ? post.editHistory : [];
+        const lastVersion = history[history.length - 1];
+        if (!lastVersion) {
+            return res.status(400).json({ message: "No edit history to undo." });
+        }
+        const currentSnapshot = {
+            title: post.title,
+            type: post.type,
+            desc: post.desc,
+            image: post.image,
+            images: Array.isArray(post.images) ? post.images : [],
+            editedAt: new Date(),
+            editedBy: getEditorMeta(req),
+        };
+        post.set({
+            title: lastVersion.title,
+            type: lastVersion.type,
+            desc: lastVersion.desc,
+            image: lastVersion.image,
+            images: Array.isArray(lastVersion.images) ? lastVersion.images : [],
+            editHistory: [...history.slice(0, -1), currentSnapshot],
+        });
+        const updatedPost = await post.save();
+        res.status(200).json({ message: "Post reverted to previous version", post: updatedPost });
+    }
+    catch (error) {
+        console.error("Error undoing post edit:", error);
+        res.status(500).json({ message: "Error undoing post edit", error: (0, imageUpload_1.getErrorMessage)(error) });
+    }
+};
+exports.undoLastPostEdit = undoLastPostEdit;

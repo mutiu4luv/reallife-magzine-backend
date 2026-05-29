@@ -1,10 +1,18 @@
 import { Request, Response } from "express";
 import upcomingEventModel from "../model/upcomingEvent.model";
 import { getErrorMessage, uploadImage, UploadedFile } from "../utils/imageUpload";
+import { AuthenticatedRequest } from "../utils/auth";
+
+const getEditorMeta = (req: AuthenticatedRequest) => ({
+  id: String(req.user?._id || ""),
+  name: req.user?.name || "",
+  email: req.user?.email || "",
+  role: req.user?.role || "",
+});
 
 export const getUpcomingEvents = async (_: Request, res: Response) => {
   try {
-    const events = await upcomingEventModel.find().sort({ createdAt: -1 });
+    const events = await upcomingEventModel.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 });
     res.status(200).json(events);
   } catch (error) {
     console.error("Error fetching upcoming events:", error);
@@ -14,7 +22,7 @@ export const getUpcomingEvents = async (_: Request, res: Response) => {
 
 export const getUpcomingEventById = async (req: Request, res: Response) => {
   try {
-    const event = await upcomingEventModel.findById(req.params.id);
+    const event = await upcomingEventModel.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
 
     if (!event) {
       return res.status(404).json({ message: "Upcoming event not found" });
@@ -64,7 +72,7 @@ export const createUpcomingEvent = async (req: Request, res: Response) => {
   }
 };
 
-export const updateUpcomingEvent = async (req: Request, res: Response) => {
+export const updateUpcomingEvent = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const existingEvent = await upcomingEventModel.findById(req.params.id);
 
@@ -114,6 +122,15 @@ export const updateUpcomingEvent = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "At least one image is required" });
     }
 
+    const previousVersion = {
+      title: existingEvent.title,
+      description: existingEvent.description,
+      images: Array.isArray(existingEvent.images) ? existingEvent.images : [],
+      isActive: existingEvent.isActive,
+      editedAt: new Date(),
+      editedBy: getEditorMeta(req),
+    };
+
     existingEvent.set({
       title: title === undefined ? existingEvent.title : title.trim(),
       description: description === undefined ? existingEvent.description : description.trim(),
@@ -122,6 +139,7 @@ export const updateUpcomingEvent = async (req: Request, res: Response) => {
         isActive === undefined
           ? existingEvent.isActive
           : isActive === "true" || isActive === true,
+      editHistory: [...(existingEvent.editHistory || []), previousVersion],
     });
 
     const updatedEvent = await existingEvent.save();
@@ -135,17 +153,102 @@ export const updateUpcomingEvent = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteUpcomingEvent = async (req: Request, res: Response) => {
+export const deleteUpcomingEvent = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const deletedEvent = await upcomingEventModel.findByIdAndDelete(req.params.id);
+    const item = await upcomingEventModel.findById(req.params.id);
 
-    if (!deletedEvent) {
+    if (!item) {
       return res.status(404).json({ message: "Upcoming event not found" });
     }
 
-    res.status(200).json({ message: "Upcoming event deleted successfully", event: deletedEvent });
+    if (req.user?.role === "admin") {
+      const deletedEvent = await upcomingEventModel.findByIdAndDelete(req.params.id);
+      return res.status(200).json({ message: "Upcoming event deleted permanently", event: deletedEvent });
+    }
+
+    item.set({
+      isDeleted: true,
+      deletedAt: new Date(),
+      deletedBy: getEditorMeta(req),
+    });
+    await item.save();
+    res.status(200).json({ message: "Upcoming event moved to deleted review.", event: item });
   } catch (error) {
     console.error("Error deleting upcoming event:", error);
     res.status(500).json({ message: "Error deleting upcoming event", error: getErrorMessage(error) });
+  }
+};
+
+export const getDeletedUpcomingEvents = async (_req: AuthenticatedRequest, res: Response) => {
+  try {
+    const items = await upcomingEventModel.find({ isDeleted: true }).sort({ deletedAt: -1, updatedAt: -1 });
+    res.status(200).json(items);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching deleted upcoming events", error: getErrorMessage(error) });
+  }
+};
+
+export const restoreUpcomingEvent = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const item = await upcomingEventModel.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ message: "Upcoming event not found" });
+    }
+    item.set({
+      isDeleted: false,
+      deletedAt: null,
+      deletedBy: { id: "", name: "", email: "", role: "" },
+    });
+    const restored = await item.save();
+    res.status(200).json({ message: "Upcoming event restored successfully", event: restored });
+  } catch (error) {
+    res.status(500).json({ message: "Error restoring upcoming event", error: getErrorMessage(error) });
+  }
+};
+
+export const permanentDeleteUpcomingEvent = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const item = await upcomingEventModel.findByIdAndDelete(req.params.id);
+    if (!item) {
+      return res.status(404).json({ message: "Upcoming event not found" });
+    }
+    res.status(200).json({ message: "Upcoming event permanently deleted", event: item });
+  } catch (error) {
+    res.status(500).json({ message: "Error permanently deleting upcoming event", error: getErrorMessage(error) });
+  }
+};
+
+export const undoLastUpcomingEventEdit = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const item = await upcomingEventModel.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ message: "Upcoming event not found" });
+    }
+    const history = Array.isArray(item.editHistory) ? item.editHistory : [];
+    const lastVersion = history[history.length - 1];
+    if (!lastVersion) {
+      return res.status(400).json({ message: "No edit history to undo." });
+    }
+
+    const currentSnapshot = {
+      title: item.title,
+      description: item.description,
+      images: Array.isArray(item.images) ? item.images : [],
+      isActive: item.isActive,
+      editedAt: new Date(),
+      editedBy: getEditorMeta(req),
+    };
+
+    item.set({
+      title: lastVersion.title,
+      description: lastVersion.description,
+      images: Array.isArray(lastVersion.images) ? lastVersion.images : [],
+      isActive: Boolean(lastVersion.isActive),
+      editHistory: [...history.slice(0, -1), currentSnapshot],
+    });
+    const updated = await item.save();
+    res.status(200).json({ message: "Upcoming event reverted to previous version", event: updated });
+  } catch (error) {
+    res.status(500).json({ message: "Error undoing upcoming event edit", error: getErrorMessage(error) });
   }
 };
