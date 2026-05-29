@@ -6,6 +6,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getAvailablePermissions = exports.getAuditLogs = exports.updateUserRole = exports.deleteUser = exports.getUsers = exports.resolvePermissionRequest = exports.resolveAdminRequest = exports.getPermissionRequests = exports.getAdminRequests = exports.requestPermissions = exports.requestAdminAccess = exports.logout = exports.getMe = exports.changePassword = exports.login = exports.register = void 0;
 const user_model_1 = __importDefault(require("../model/user.model"));
 const auditLog_model_1 = __importDefault(require("../model/auditLog.model"));
+const post_model_1 = __importDefault(require("../model/post.model"));
+const news_model_1 = __importDefault(require("../model/news.model"));
+const upcomingEvent_model_1 = __importDefault(require("../model/upcomingEvent.model"));
+const pastEdition_model_1 = __importDefault(require("../model/pastEdition.model"));
+const testimony_model_1 = __importDefault(require("../model/testimony.model"));
+const interview_model_1 = __importDefault(require("../model/interview.model"));
+const photoGallery_model_1 = __importDefault(require("../model/photoGallery.model"));
 const auth_1 = require("../utils/auth");
 const imageUpload_1 = require("../utils/imageUpload");
 const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
@@ -339,8 +346,55 @@ const updateUserRole = async (req, res) => {
 exports.updateUserRole = updateUserRole;
 const getAuditLogs = async (_req, res) => {
     try {
-        const logs = await auditLog_model_1.default.find().sort({ createdAt: -1 }).limit(120);
-        res.status(200).json(logs);
+        const logs = await auditLog_model_1.default.find().sort({ createdAt: -1 }).limit(300).lean();
+        const missingTitleLogs = logs.filter((log) => log.targetId && !(log.metadata && typeof log.metadata === "object" && "title" in log.metadata));
+        const idsByResource = new Map();
+        missingTitleLogs.forEach((log) => {
+            const current = idsByResource.get(log.resource) || [];
+            current.push(log.targetId);
+            idsByResource.set(log.resource, current);
+        });
+        const titleMap = new Map();
+        const mapTitle = (resource, id, title) => {
+            if (id && title) {
+                titleMap.set(`${resource}:${id}`, title);
+            }
+        };
+        const loadTitles = async (resource, model, fields) => {
+            const ids = Array.from(new Set(idsByResource.get(resource) || []));
+            if (!ids.length)
+                return;
+            const docs = await model.find({ _id: { $in: ids } }, fields.join(" ")).lean();
+            docs.forEach((doc) => {
+                const title = fields.map((field) => String(doc[field] || "").trim()).find(Boolean) || "";
+                mapTitle(resource, String(doc._id), title);
+            });
+        };
+        await Promise.all([
+            loadTitles("posts", post_model_1.default, ["title"]),
+            loadTitles("news", news_model_1.default, ["title"]),
+            loadTitles("events", upcomingEvent_model_1.default, ["title"]),
+            loadTitles("pastEditions", pastEdition_model_1.default, ["title"]),
+            loadTitles("testimonies", testimony_model_1.default, ["name", "message"]),
+            loadTitles("interviews", interview_model_1.default, ["name", "role"]),
+            loadTitles("photoGallery", photoGallery_model_1.default, ["title", "image"]),
+            loadTitles("users", user_model_1.default, ["name", "email"]),
+        ]);
+        const enrichedLogs = logs.map((log) => {
+            const metadata = (log.metadata && typeof log.metadata === "object" ? log.metadata : {});
+            const titleFromMetadata = (typeof metadata.title === "string" && metadata.title.trim()) ||
+                (typeof metadata.name === "string" && metadata.name.trim()) ||
+                "";
+            const titleFromLookup = log.targetId ? titleMap.get(`${log.resource}:${log.targetId}`) || "" : "";
+            return {
+                ...log,
+                metadata: {
+                    ...metadata,
+                    title: titleFromMetadata || titleFromLookup || "",
+                },
+            };
+        });
+        res.status(200).json(enrichedLogs);
     }
     catch (error) {
         res.status(500).json({ message: "Unable to load audit logs.", error: (0, imageUpload_1.getErrorMessage)(error) });

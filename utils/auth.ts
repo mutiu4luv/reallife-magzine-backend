@@ -160,9 +160,16 @@ export const auditAction = (resource: string, action: string) => (
   res: Response,
   next: NextFunction
 ) => {
+  const requestBody = (req.body || {}) as Record<string, unknown>;
+  const titleCandidate =
+    (typeof requestBody.title === "string" && requestBody.title.trim()) ||
+    (typeof requestBody.name === "string" && requestBody.name.trim()) ||
+    (typeof requestBody.fullName === "string" && requestBody.fullName.trim()) ||
+    "";
+
   res.on("finish", () => {
     if (res.statusCode < 400) {
-      void writeAuditLog(req, action, resource);
+      void writeAuditLog(req, action, resource, titleCandidate ? { title: titleCandidate } : undefined);
     }
   });
 

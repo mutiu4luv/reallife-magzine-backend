@@ -1,6 +1,13 @@
 import { Response } from "express";
 import userModel from "../model/user.model";
 import auditLogModel from "../model/auditLog.model";
+import postModel from "../model/post.model";
+import newsModel from "../model/news.model";
+import upcomingEventModel from "../model/upcomingEvent.model";
+import pastEditionModel from "../model/pastEdition.model";
+import testimonyModel from "../model/testimony.model";
+import interviewModel from "../model/interview.model";
+import photoGalleryModel from "../model/photoGallery.model";
 import {
   AuthenticatedRequest,
   createAuthToken,
@@ -388,8 +395,63 @@ export const updateUserRole = async (req: AuthenticatedRequest, res: Response) =
 
 export const getAuditLogs = async (_req: AuthenticatedRequest, res: Response) => {
   try {
-    const logs = await auditLogModel.find().sort({ createdAt: -1 }).limit(120);
-    res.status(200).json(logs);
+    const logs = await auditLogModel.find().sort({ createdAt: -1 }).limit(300).lean();
+    const missingTitleLogs = logs.filter(
+      (log) => log.targetId && !(log.metadata && typeof log.metadata === "object" && "title" in log.metadata)
+    );
+
+    const idsByResource = new Map<string, string[]>();
+    missingTitleLogs.forEach((log) => {
+      const current = idsByResource.get(log.resource) || [];
+      current.push(log.targetId);
+      idsByResource.set(log.resource, current);
+    });
+
+    const titleMap = new Map<string, string>();
+    const mapTitle = (resource: string, id: string, title: string) => {
+      if (id && title) {
+        titleMap.set(`${resource}:${id}`, title);
+      }
+    };
+
+    const loadTitles = async (resource: string, model: any, fields: string[]) => {
+      const ids = Array.from(new Set(idsByResource.get(resource) || []));
+      if (!ids.length) return;
+      const docs = await model.find({ _id: { $in: ids } }, fields.join(" ")).lean();
+      docs.forEach((doc: any) => {
+        const title = fields.map((field) => String(doc[field] || "").trim()).find(Boolean) || "";
+        mapTitle(resource, String(doc._id), title);
+      });
+    };
+
+    await Promise.all([
+      loadTitles("posts", postModel, ["title"]),
+      loadTitles("news", newsModel, ["title"]),
+      loadTitles("events", upcomingEventModel, ["title"]),
+      loadTitles("pastEditions", pastEditionModel, ["title"]),
+      loadTitles("testimonies", testimonyModel, ["name", "message"]),
+      loadTitles("interviews", interviewModel, ["name", "role"]),
+      loadTitles("photoGallery", photoGalleryModel, ["title", "image"]),
+      loadTitles("users", userModel, ["name", "email"]),
+    ]);
+
+    const enrichedLogs = logs.map((log) => {
+      const metadata = (log.metadata && typeof log.metadata === "object" ? log.metadata : {}) as Record<string, unknown>;
+      const titleFromMetadata =
+        (typeof metadata.title === "string" && metadata.title.trim()) ||
+        (typeof metadata.name === "string" && metadata.name.trim()) ||
+        "";
+      const titleFromLookup = log.targetId ? titleMap.get(`${log.resource}:${log.targetId}`) || "" : "";
+      return {
+        ...log,
+        metadata: {
+          ...metadata,
+          title: titleFromMetadata || titleFromLookup || "",
+        },
+      };
+    });
+
+    res.status(200).json(enrichedLogs);
   } catch (error) {
     res.status(500).json({ message: "Unable to load audit logs.", error: getErrorMessage(error) });
   }

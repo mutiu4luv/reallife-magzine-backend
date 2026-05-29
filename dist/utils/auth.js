@@ -120,9 +120,14 @@ const writeAuditLog = async (req, action, resource, metadata) => {
 };
 exports.writeAuditLog = writeAuditLog;
 const auditAction = (resource, action) => (req, res, next) => {
+    const requestBody = (req.body || {});
+    const titleCandidate = (typeof requestBody.title === "string" && requestBody.title.trim()) ||
+        (typeof requestBody.name === "string" && requestBody.name.trim()) ||
+        (typeof requestBody.fullName === "string" && requestBody.fullName.trim()) ||
+        "";
     res.on("finish", () => {
         if (res.statusCode < 400) {
-            void (0, exports.writeAuditLog)(req, action, resource);
+            void (0, exports.writeAuditLog)(req, action, resource, titleCandidate ? { title: titleCandidate } : undefined);
         }
     });
     next();
