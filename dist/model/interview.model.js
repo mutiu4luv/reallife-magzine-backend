@@ -12,6 +12,12 @@ const interviewSchema = new mongoose_1.Schema({
     message: { type: String, default: "", trim: true },
     qa: { type: [qaSchema], default: [] },
     isActive: { type: Boolean, default: true },
+    createdBy: {
+        id: { type: String, default: "" },
+        name: { type: String, default: "" },
+        email: { type: String, default: "" },
+        role: { type: String, default: "" },
+    },
     isDeleted: { type: Boolean, default: false, index: true },
     deletedAt: { type: Date, default: null },
     deletedBy: {

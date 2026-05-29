@@ -94,12 +94,14 @@ export const createPost = async (req: Request, res: Response) => {
       });
     }
 
+    const authReq = req as AuthenticatedRequest;
     const post = await postModel.create({
       title,
       type,
       desc,
       image: uploadedImages[0],
       images: uploadedImages,
+      createdBy: getEditorMeta(authReq),
     });
 
     res.status(201).json(post);
@@ -118,6 +120,13 @@ export const updatePost = async (req: AuthenticatedRequest, res: Response) => {
 
     if (!existingPost) {
       return res.status(404).json({ message: "Post not found" });
+    }
+
+    if (req.user?.role === "blogger") {
+      const ownerId = String((existingPost as any).createdBy?.id || "");
+      if (!ownerId || ownerId !== String(req.user?._id || "")) {
+        return res.status(403).json({ message: "You can only edit blogs you created." });
+      }
     }
 
     const { title, type, desc, imageUrl, image, imageUrls, images } = req.body;

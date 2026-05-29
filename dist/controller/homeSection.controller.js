@@ -65,11 +65,13 @@ const createTestimony = async (req, res) => {
         if (!name?.trim() || !message?.trim() || !images.length) {
             return res.status(400).json({ message: "Name, message, and image are required" });
         }
+        const authReq = req;
         const testimony = await testimony_model_1.default.create({
             name: name.trim(),
             message: message.trim(),
             image: images[0],
             isActive: parseBoolean(req.body.isActive),
+            createdBy: getEditorMeta(authReq),
         });
         res.status(201).json(testimony);
     }
@@ -88,6 +90,12 @@ const updateTestimony = async (req, res) => {
         const testimony = await testimony_model_1.default.findById(req.params.id);
         if (!testimony) {
             return res.status(404).json({ message: "Testimony not found" });
+        }
+        if (req.user?.role === "blogger") {
+            const ownerId = String(testimony.createdBy?.id || "");
+            if (!ownerId || ownerId !== String(req.user?._id || "")) {
+                return res.status(403).json({ message: "You can only edit testimonies you created." });
+            }
         }
         const previousVersion = {
             name: testimony.name,
@@ -156,6 +164,7 @@ const createInterview = async (req, res) => {
         if (!name?.trim() || !role?.trim() || !images.length || !qa.length) {
             return res.status(400).json({ message: "Name, role, image, and at least one Q&A are required" });
         }
+        const authReq = req;
         const interview = await interview_model_1.default.create({
             name: name.trim(),
             role: role.trim(),
@@ -163,6 +172,7 @@ const createInterview = async (req, res) => {
             qa,
             image: images[0],
             isActive: parseBoolean(req.body.isActive),
+            createdBy: getEditorMeta(authReq),
         });
         res.status(201).json(interview);
     }
@@ -182,6 +192,12 @@ const updateInterview = async (req, res) => {
         const interview = await interview_model_1.default.findById(req.params.id);
         if (!interview) {
             return res.status(404).json({ message: "Interview not found" });
+        }
+        if (req.user?.role === "blogger") {
+            const ownerId = String(interview.createdBy?.id || "");
+            if (!ownerId || ownerId !== String(req.user?._id || "")) {
+                return res.status(403).json({ message: "You can only edit interviews you created." });
+            }
         }
         const previousVersion = {
             name: interview.name,
@@ -253,10 +269,12 @@ const createPhotoGallery = async (req, res) => {
         if (!images.length) {
             return res.status(400).json({ message: "At least one gallery image is required" });
         }
+        const authReq = req;
         const photos = await photoGallery_model_1.default.insertMany(images.map((image) => ({
             title: typeof title === "string" ? title.trim() : "",
             image,
             isActive: parseBoolean(req.body.isActive),
+            createdBy: getEditorMeta(authReq),
         })));
         res.status(201).json(photos);
     }

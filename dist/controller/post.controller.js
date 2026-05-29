@@ -84,12 +84,14 @@ const createPost = async (req, res) => {
                 message: "Image is required. Upload files named 'images' or provide imageUrls.",
             });
         }
+        const authReq = req;
         const post = await post_model_1.default.create({
             title,
             type,
             desc,
             image: uploadedImages[0],
             images: uploadedImages,
+            createdBy: getEditorMeta(authReq),
         });
         res.status(201).json(post);
     }
@@ -106,6 +108,12 @@ const updatePost = async (req, res) => {
         const existingPost = await post_model_1.default.findById(req.params.id);
         if (!existingPost) {
             return res.status(404).json({ message: "Post not found" });
+        }
+        if (req.user?.role === "blogger") {
+            const ownerId = String(existingPost.createdBy?.id || "");
+            if (!ownerId || ownerId !== String(req.user?._id || "")) {
+                return res.status(403).json({ message: "You can only edit blogs you created." });
+            }
         }
         const { title, type, desc, imageUrl, image, imageUrls, images } = req.body;
         const files = getUploadedFiles(req);

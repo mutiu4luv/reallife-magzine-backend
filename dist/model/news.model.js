@@ -6,6 +6,12 @@ const newsSchema = new mongoose_1.Schema({
     description: { type: String, required: true, trim: true },
     image: { type: String, required: true },
     images: { type: [String], default: [] },
+    createdBy: {
+        id: { type: String, default: "" },
+        name: { type: String, default: "" },
+        email: { type: String, default: "" },
+        role: { type: String, default: "" },
+    },
     isDeleted: { type: Boolean, default: false, index: true },
     deletedAt: { type: Date, default: null },
     deletedBy: {

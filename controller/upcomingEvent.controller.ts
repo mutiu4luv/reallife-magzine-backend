@@ -55,11 +55,13 @@ export const createUpcomingEvent = async (req: Request, res: Response) => {
     );
     const uploadedImages = images.filter((image): image is string => Boolean(image));
 
+    const authReq = req as AuthenticatedRequest;
     const event = await upcomingEventModel.create({
       title: title.trim(),
       description: description.trim(),
       images: uploadedImages,
       isActive: isActive === undefined ? true : isActive === "true" || isActive === true,
+      createdBy: getEditorMeta(authReq),
     });
 
     res.status(201).json(event);
@@ -78,6 +80,13 @@ export const updateUpcomingEvent = async (req: AuthenticatedRequest, res: Respon
 
     if (!existingEvent) {
       return res.status(404).json({ message: "Upcoming event not found" });
+    }
+
+    if (req.user?.role === "blogger") {
+      const ownerId = String((existingEvent as any).createdBy?.id || "");
+      if (!ownerId || ownerId !== String(req.user?._id || "")) {
+        return res.status(403).json({ message: "You can only edit events you created." });
+      }
     }
 
     const { title, description, isActive, imageUrls, images: bodyImages } = req.body;

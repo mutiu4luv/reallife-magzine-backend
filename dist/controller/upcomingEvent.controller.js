@@ -51,11 +51,13 @@ const createUpcomingEvent = async (req, res) => {
         }
         const images = await Promise.all(files.map((file) => (0, imageUpload_1.uploadImage)("reality_life_events", file)));
         const uploadedImages = images.filter((image) => Boolean(image));
+        const authReq = req;
         const event = await upcomingEvent_model_1.default.create({
             title: title.trim(),
             description: description.trim(),
             images: uploadedImages,
             isActive: isActive === undefined ? true : isActive === "true" || isActive === true,
+            createdBy: getEditorMeta(authReq),
         });
         res.status(201).json(event);
     }
@@ -72,6 +74,12 @@ const updateUpcomingEvent = async (req, res) => {
         const existingEvent = await upcomingEvent_model_1.default.findById(req.params.id);
         if (!existingEvent) {
             return res.status(404).json({ message: "Upcoming event not found" });
+        }
+        if (req.user?.role === "blogger") {
+            const ownerId = String(existingEvent.createdBy?.id || "");
+            if (!ownerId || ownerId !== String(req.user?._id || "")) {
+                return res.status(403).json({ message: "You can only edit events you created." });
+            }
         }
         const { title, description, isActive, imageUrls, images: bodyImages } = req.body;
         const files = (req.files || []);

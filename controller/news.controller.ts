@@ -94,11 +94,13 @@ export const createNews = async (req: Request, res: Response) => {
       });
     }
 
+    const authReq = req as AuthenticatedRequest;
     const news = await newsModel.create({
       title: title.trim(),
       description: description.trim(),
       image: uploadedImages[0],
       images: uploadedImages,
+      createdBy: getEditorMeta(authReq),
     });
 
     res.status(201).json(news);
@@ -117,6 +119,13 @@ export const updateNews = async (req: AuthenticatedRequest, res: Response) => {
 
     if (!existingNews) {
       return res.status(404).json({ message: "News item not found" });
+    }
+
+    if (req.user?.role === "blogger") {
+      const ownerId = String((existingNews as any).createdBy?.id || "");
+      if (!ownerId || ownerId !== String(req.user?._id || "")) {
+        return res.status(403).json({ message: "You can only edit news you created." });
+      }
     }
 
     const { title, description, imageUrl, image, imageUrls, images } = req.body;

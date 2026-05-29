@@ -84,11 +84,13 @@ const createNews = async (req, res) => {
                 message: "Image is required. Upload files named 'images' or provide imageUrls.",
             });
         }
+        const authReq = req;
         const news = await news_model_1.default.create({
             title: title.trim(),
             description: description.trim(),
             image: uploadedImages[0],
             images: uploadedImages,
+            createdBy: getEditorMeta(authReq),
         });
         res.status(201).json(news);
     }
@@ -105,6 +107,12 @@ const updateNews = async (req, res) => {
         const existingNews = await news_model_1.default.findById(req.params.id);
         if (!existingNews) {
             return res.status(404).json({ message: "News item not found" });
+        }
+        if (req.user?.role === "blogger") {
+            const ownerId = String(existingNews.createdBy?.id || "");
+            if (!ownerId || ownerId !== String(req.user?._id || "")) {
+                return res.status(403).json({ message: "You can only edit news you created." });
+            }
         }
         const { title, description, imageUrl, image, imageUrls, images } = req.body;
         const files = getUploadedFiles(req);

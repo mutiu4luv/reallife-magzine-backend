@@ -78,11 +78,13 @@ export const createTestimony = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Name, message, and image are required" });
     }
 
+    const authReq = req as AuthenticatedRequest;
     const testimony = await testimonyModel.create({
       name: name.trim(),
       message: message.trim(),
       image: images[0],
       isActive: parseBoolean(req.body.isActive),
+      createdBy: getEditorMeta(authReq),
     });
 
     res.status(201).json(testimony);
@@ -103,6 +105,12 @@ export const updateTestimony = async (req: AuthenticatedRequest, res: Response) 
     const testimony = await testimonyModel.findById(req.params.id);
     if (!testimony) {
       return res.status(404).json({ message: "Testimony not found" });
+    }
+    if (req.user?.role === "blogger") {
+      const ownerId = String((testimony as any).createdBy?.id || "");
+      if (!ownerId || ownerId !== String(req.user?._id || "")) {
+        return res.status(403).json({ message: "You can only edit testimonies you created." });
+      }
     }
 
     const previousVersion = {
@@ -178,6 +186,7 @@ export const createInterview = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Name, role, image, and at least one Q&A are required" });
     }
 
+    const authReq = req as AuthenticatedRequest;
     const interview = await interviewModel.create({
       name: name.trim(),
       role: role.trim(),
@@ -185,6 +194,7 @@ export const createInterview = async (req: Request, res: Response) => {
       qa,
       image: images[0],
       isActive: parseBoolean(req.body.isActive),
+      createdBy: getEditorMeta(authReq),
     });
 
     res.status(201).json(interview);
@@ -206,6 +216,12 @@ export const updateInterview = async (req: AuthenticatedRequest, res: Response) 
     const interview = await interviewModel.findById(req.params.id);
     if (!interview) {
       return res.status(404).json({ message: "Interview not found" });
+    }
+    if (req.user?.role === "blogger") {
+      const ownerId = String((interview as any).createdBy?.id || "");
+      if (!ownerId || ownerId !== String(req.user?._id || "")) {
+        return res.status(403).json({ message: "You can only edit interviews you created." });
+      }
     }
 
     const previousVersion = {
@@ -284,11 +300,13 @@ export const createPhotoGallery = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "At least one gallery image is required" });
     }
 
+    const authReq = req as AuthenticatedRequest;
     const photos = await photoGalleryModel.insertMany(
       images.map((image) => ({
         title: typeof title === "string" ? title.trim() : "",
         image,
         isActive: parseBoolean(req.body.isActive),
+        createdBy: getEditorMeta(authReq),
       }))
     );
 

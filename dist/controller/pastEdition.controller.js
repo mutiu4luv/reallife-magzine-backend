@@ -37,10 +37,13 @@ const createPastEditions = async (req, res) => {
         if (!uploadedImages.length) {
             return res.status(400).json({ message: "Unable to upload past edition images" });
         }
+        const authReq = req;
+        const createdBy = getEditorMeta(authReq);
         const trimmedTitle = typeof title === "string" ? title.trim() : "";
         const pastEditions = await pastEdition_model_1.default.insertMany(uploadedImages.map((image) => ({
             title: trimmedTitle,
             image,
+            createdBy,
         })));
         res.status(201).json(pastEditions);
     }
