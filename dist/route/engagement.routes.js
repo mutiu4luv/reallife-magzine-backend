@@ -1,0 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const engagement_controller_1 = require("../controller/engagement.controller");
+const router = (0, express_1.Router)();
+router.get("/comments", engagement_controller_1.getComments);
+router.post("/comments", engagement_controller_1.createComment);
+router.post("/comments/:id/like", engagement_controller_1.likeComment);
+router.get("/readers/:contentType/:contentId", engagement_controller_1.getReaders);
+router.post("/readers/:contentType/:contentId/increment", engagement_controller_1.incrementReaders);
+exports.default = router;
