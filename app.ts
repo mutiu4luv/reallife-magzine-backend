@@ -15,6 +15,7 @@ import photoGalleryRoutes from "./route/photoGallery.routes";
 import testimonyRoutes from "./route/testimony.routes";
 import authRoutes from "./route/auth.routes";
 import engagementRoutes from "./route/engagement.routes";
+import compendiumRoutes from "./route/compendium.routes";
 
 dns.setDefaultResultOrder("ipv4first");
 
@@ -102,6 +103,7 @@ app.use("/api/interview-section", requireDatabase, interviewRoutes);
 app.use("/api/photo-gallery", requireDatabase, photoGalleryRoutes);
 app.use("/api/photogallery", requireDatabase, photoGalleryRoutes);
 app.use("/api", requireDatabase, engagementRoutes);
+app.use("/api/compendium", requireDatabase, compendiumRoutes);
 
 app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
   if (error instanceof SyntaxError && "body" in error) {

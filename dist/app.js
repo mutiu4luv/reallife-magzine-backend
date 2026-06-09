@@ -19,6 +19,7 @@ const photoGallery_routes_1 = __importDefault(require("./route/photoGallery.rout
 const testimony_routes_1 = __importDefault(require("./route/testimony.routes"));
 const auth_routes_1 = __importDefault(require("./route/auth.routes"));
 const engagement_routes_1 = __importDefault(require("./route/engagement.routes"));
+const compendium_routes_1 = __importDefault(require("./route/compendium.routes"));
 dns_1.default.setDefaultResultOrder("ipv4first");
 dotenv_1.default.config();
 dotenv_1.default.config({ path: path_1.default.resolve(__dirname, "../.env") });
@@ -92,6 +93,7 @@ app.use("/api/interview-section", requireDatabase, interview_routes_1.default);
 app.use("/api/photo-gallery", requireDatabase, photoGallery_routes_1.default);
 app.use("/api/photogallery", requireDatabase, photoGallery_routes_1.default);
 app.use("/api", requireDatabase, engagement_routes_1.default);
+app.use("/api/compendium", requireDatabase, compendium_routes_1.default);
 app.use((error, _req, res, next) => {
     if (error instanceof SyntaxError && "body" in error) {
         res
