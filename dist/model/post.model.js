@@ -5,8 +5,10 @@ const postSchema = new mongoose_1.Schema({
     title: { type: String, required: true },
     type: { type: String, enum: ["Magazine", "Book"], required: true },
     desc: { type: String, required: true },
+    coverImage: { type: String, default: "" },
     image: { type: String, required: true },
     images: { type: [String], default: [] },
+    downloadUrl: { type: String, default: "" },
     createdBy: {
         id: { type: String, default: "" },
         name: { type: String, default: "" },
@@ -27,8 +29,10 @@ const postSchema = new mongoose_1.Schema({
                 title: { type: String, required: true },
                 type: { type: String, enum: ["Magazine", "Book"], required: true },
                 desc: { type: String, required: true },
+                coverImage: { type: String, default: "" },
                 image: { type: String, required: true },
                 images: { type: [String], default: [] },
+                downloadUrl: { type: String, default: "" },
                 editedAt: { type: Date, default: Date.now },
                 editedBy: {
                     id: { type: String, default: "" },

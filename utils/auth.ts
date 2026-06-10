@@ -17,6 +17,11 @@ export type AuthUser = {
   adminRequestStatus: "none" | "pending" | "approved" | "rejected";
   permissionRequestStatus: "none" | "pending" | "approved" | "rejected";
   requestedPermissions: string[];
+  magazineAccessStatus: "none" | "pending" | "approved" | "rejected";
+  magazineAccessReference?: string;
+  magazineAccessRequestedAt?: Date | string;
+  magazineAccessApprovedAt?: Date | string;
+  magazineAccessRejectedAt?: Date | string;
 };
 
 export type AuthenticatedRequest = Request & {
@@ -68,6 +73,11 @@ export const sanitizeUser = (user: AuthUser) => ({
   adminRequestStatus: user.adminRequestStatus,
   permissionRequestStatus: user.permissionRequestStatus,
   requestedPermissions: user.requestedPermissions || [],
+  magazineAccessStatus: user.magazineAccessStatus || "none",
+  magazineAccessReference: user.magazineAccessReference || "",
+  magazineAccessRequestedAt: user.magazineAccessRequestedAt || "",
+  magazineAccessApprovedAt: user.magazineAccessApprovedAt || "",
+  magazineAccessRejectedAt: user.magazineAccessRejectedAt || "",
 });
 
 const getBearerToken = (req: Request) => {

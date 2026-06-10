@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.undoLastPostEdit = exports.permanentDeletePost = exports.restorePost = exports.getDeletedPosts = exports.deletePost = exports.updatePost = exports.createPost = exports.getPostById = exports.getPosts = void 0;
+exports.undoLastPostEdit = exports.getPostDownload = exports.permanentDeletePost = exports.restorePost = exports.getDeletedPosts = exports.deletePost = exports.updatePost = exports.createPost = exports.getPostById = exports.getMagazines = exports.getPosts = void 0;
 const post_model_1 = __importDefault(require("../model/post.model"));
 const imageUpload_1 = require("../utils/imageUpload");
 const parseImageList = (value) => {
@@ -53,6 +53,22 @@ const getPosts = async (_req, res) => {
     }
 };
 exports.getPosts = getPosts;
+const getMagazines = async (_req, res) => {
+    try {
+        const magazines = await post_model_1.default
+            .find({ type: "Magazine", isDeleted: { $ne: true } })
+            .sort({ createdAt: -1 });
+        res.status(200).json(magazines.map((magazine) => ({
+            ...magazine.toObject(),
+            coverImage: String(magazine.coverImage || magazine.image || "").trim(),
+        })));
+    }
+    catch (error) {
+        console.error("Error fetching magazines:", error);
+        res.status(500).json({ message: "Error fetching magazines", error: (0, imageUpload_1.getErrorMessage)(error) });
+    }
+};
+exports.getMagazines = getMagazines;
 const getPostById = async (req, res) => {
     try {
         const post = await post_model_1.default.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
@@ -69,7 +85,7 @@ const getPostById = async (req, res) => {
 exports.getPostById = getPostById;
 const createPost = async (req, res) => {
     try {
-        const { title, type, desc, imageUrl, image, imageUrls, images } = req.body;
+        const { title, type, desc, imageUrl, image, imageUrls, images, downloadUrl } = req.body;
         const files = getUploadedFiles(req);
         const imageSources = [
             ...parseImageList(imageUrls || images),
@@ -89,8 +105,10 @@ const createPost = async (req, res) => {
             title,
             type,
             desc,
+            coverImage: uploadedImages[0],
             image: uploadedImages[0],
             images: uploadedImages,
+            downloadUrl: typeof downloadUrl === "string" ? downloadUrl.trim() : "",
             createdBy: getEditorMeta(authReq),
         });
         res.status(201).json(post);
@@ -115,7 +133,7 @@ const updatePost = async (req, res) => {
                 return res.status(403).json({ message: "You can only edit blogs you created." });
             }
         }
-        const { title, type, desc, imageUrl, image, imageUrls, images } = req.body;
+        const { title, type, desc, imageUrl, image, imageUrls, images, downloadUrl } = req.body;
         const files = getUploadedFiles(req);
         const imageSources = [
             ...parseImageList(imageUrls || images),
@@ -151,8 +169,10 @@ const updatePost = async (req, res) => {
             title: title === undefined ? existingPost.title : title.trim(),
             type: type === undefined ? existingPost.type : type,
             desc: desc === undefined ? existingPost.desc : desc.trim(),
+            coverImage: shouldUpdateImages ? nextImages[0] || existingPost.coverImage || existingPost.image : existingPost.coverImage || existingPost.image,
             image: nextImages[0] || existingPost.image,
             images: nextImages,
+            downloadUrl: downloadUrl === undefined ? existingPost.downloadUrl || "" : String(downloadUrl).trim(),
             editHistory: [...(existingPost.editHistory || []), previousVersion],
         });
         const updatedPost = await existingPost.save();
@@ -235,6 +255,31 @@ const permanentDeletePost = async (req, res) => {
     }
 };
 exports.permanentDeletePost = permanentDeletePost;
+const getPostDownload = async (req, res) => {
+    try {
+        const post = await post_model_1.default.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
+        if (!post) {
+            return res.status(404).json({ message: "Post not found" });
+        }
+        if (post.type !== "Magazine") {
+            return res.status(400).json({ message: "Only magazines can be downloaded from this endpoint." });
+        }
+        const canDownload = req.user?.role === "admin" || req.user?.magazineAccessStatus === "approved";
+        if (!canDownload) {
+            return res.status(403).json({ message: "Payment approval is required before downloading this magazine." });
+        }
+        const downloadUrl = String(post.downloadUrl || "").trim() || post.image;
+        if (!downloadUrl) {
+            return res.status(404).json({ message: "This magazine does not have a download file yet." });
+        }
+        res.status(200).json({ downloadUrl });
+    }
+    catch (error) {
+        console.error("Error unlocking magazine download:", error);
+        res.status(500).json({ message: "Unable to unlock magazine download", error: (0, imageUpload_1.getErrorMessage)(error) });
+    }
+};
+exports.getPostDownload = getPostDownload;
 const undoLastPostEdit = async (req, res) => {
     try {
         const post = await post_model_1.default.findById(req.params.id);

@@ -3,6 +3,7 @@ import { Schema, model } from "mongoose";
 export type UserRole = "user" | "blogger" | "admin";
 export type AdminRequestStatus = "none" | "pending" | "approved" | "rejected";
 export type PermissionRequestStatus = "none" | "pending" | "approved" | "rejected";
+export type MagazineAccessStatus = "none" | "pending" | "approved" | "rejected";
 
 const authTokenSchema = new Schema(
   {
@@ -35,6 +36,15 @@ const userSchema = new Schema(
     },
     requestedPermissions: { type: [String], default: [] },
     permissionRequestedAt: { type: Date },
+    magazineAccessStatus: {
+      type: String,
+      enum: ["none", "pending", "approved", "rejected"],
+      default: "none",
+    },
+    magazineAccessReference: { type: String, default: "" },
+    magazineAccessRequestedAt: { type: Date },
+    magazineAccessApprovedAt: { type: Date },
+    magazineAccessRejectedAt: { type: Date },
     authTokens: { type: [authTokenSchema], default: [] },
   },
   { timestamps: true }

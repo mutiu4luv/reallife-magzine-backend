@@ -8,6 +8,7 @@ const router = (0, express_1.Router)();
 router.get("/", post_controller_1.getPosts);
 router.get("/deleted/list", auth_1.requireAdmin, post_controller_1.getDeletedPosts);
 router.get("/:id", post_controller_1.getPostById);
+router.get("/:id/download", auth_1.requireAuth, post_controller_1.getPostDownload);
 router.post("/", (0, auth_1.requirePermission)("posts:create"), (0, auth_1.auditAction)("posts", "create"), uploadImage_1.uploadImagesField, post_controller_1.createPost);
 router.put("/:id", (0, auth_1.requirePermission)("posts:update"), (0, auth_1.auditAction)("posts", "update"), uploadImage_1.uploadImagesField, post_controller_1.updatePost);
 router.patch("/:id", (0, auth_1.requirePermission)("posts:update"), (0, auth_1.auditAction)("posts", "update"), uploadImage_1.uploadImagesField, post_controller_1.updatePost);

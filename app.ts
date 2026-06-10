@@ -7,6 +7,7 @@ import dns from "dns";
 import { connectDB, getDatabaseStatus } from "./config/db";
 import contactRoutes from "./route/contact.routes";
 import postRoutes from "./route/post.routes";
+import magazineRoutes from "./route/magazine.routes";
 import upcomingEventRoutes from "./route/upcomingEvent.routes";
 import newsRoutes from "./route/news.routes";
 import pastEditionRoutes from "./route/pastEdition.routes";
@@ -90,6 +91,7 @@ const requireDatabase = async (_req: Request, res: Response, next: NextFunction)
 };
 
 app.use("/api/posts", requireDatabase, postRoutes);
+app.use("/api/magazines", requireDatabase, magazineRoutes);
 app.use("/api/auth", requireDatabase, authRoutes);
 app.use("/api/upcoming-events", requireDatabase, upcomingEventRoutes);
 app.use("/api/events", requireDatabase, upcomingEventRoutes);

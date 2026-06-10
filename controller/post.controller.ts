@@ -31,6 +31,11 @@ const getUploadedFiles = (req: Request) => {
       : [];
 };
 
+const getUploadedPdfFile = (req: Request) => {
+  const requestWithPdf = req as Request & { pdfFile?: UploadedFile };
+  return requestWithPdf.pdfFile;
+};
+
 const uploadPostImages = async (files: UploadedFile[], imageSources: string[]) => {
   const fileUrls = (
     await Promise.all(files.map((file) => uploadImage("reality_life_posts", file)))
@@ -59,6 +64,24 @@ export const getPosts = async (_req: Request, res: Response) => {
   }
 };
 
+export const getMagazines = async (_req: Request, res: Response) => {
+  try {
+    const magazines = await postModel
+      .find({ type: "Magazine", isDeleted: { $ne: true } })
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(
+      magazines.map((magazine) => ({
+        ...magazine.toObject(),
+        coverImage: String((magazine as any).coverImage || magazine.image || "").trim(),
+      }))
+    );
+  } catch (error) {
+    console.error("Error fetching magazines:", error);
+    res.status(500).json({ message: "Error fetching magazines", error: getErrorMessage(error) });
+  }
+};
+
 export const getPostById = async (req: Request, res: Response) => {
   try {
     const post = await postModel.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
@@ -76,8 +99,9 @@ export const getPostById = async (req: Request, res: Response) => {
 
 export const createPost = async (req: Request, res: Response) => {
   try {
-    const { title, type, desc, imageUrl, image, imageUrls, images } = req.body;
+    const { title, type, desc, imageUrl, image, imageUrls, images, downloadUrl } = req.body;
     const files = getUploadedFiles(req);
+    const pdfFile = getUploadedPdfFile(req);
     const imageSources = [
       ...parseImageList(imageUrls || images),
       ...parseImageList(imageUrl || image),
@@ -88,6 +112,7 @@ export const createPost = async (req: Request, res: Response) => {
     }
 
     const uploadedImages = await uploadPostImages(files, imageSources);
+    const uploadedPdfUrl = pdfFile ? await uploadImage("reality_life_posts", pdfFile) : "";
     if (!uploadedImages.length) {
       return res.status(400).json({
         message: "Image is required. Upload files named 'images' or provide imageUrls.",
@@ -99,8 +124,11 @@ export const createPost = async (req: Request, res: Response) => {
       title,
       type,
       desc,
+      coverImage: uploadedImages[0],
       image: uploadedImages[0],
       images: uploadedImages,
+      downloadUrl:
+        (typeof downloadUrl === "string" ? downloadUrl.trim() : "") || uploadedPdfUrl || "",
       createdBy: getEditorMeta(authReq),
     });
 
@@ -129,8 +157,9 @@ export const updatePost = async (req: AuthenticatedRequest, res: Response) => {
       }
     }
 
-    const { title, type, desc, imageUrl, image, imageUrls, images } = req.body;
+    const { title, type, desc, imageUrl, image, imageUrls, images, downloadUrl } = req.body;
     const files = getUploadedFiles(req);
+    const pdfFile = getUploadedPdfFile(req);
     const imageSources = [
       ...parseImageList(imageUrls || images),
       ...parseImageList(imageUrl || image),
@@ -149,6 +178,7 @@ export const updatePost = async (req: AuthenticatedRequest, res: Response) => {
     }
 
     const uploadedImages = await uploadPostImages(files, imageSources);
+    const uploadedPdfUrl = pdfFile ? await uploadImage("reality_life_posts", pdfFile) : "";
     const shouldUpdateImages = uploadedImages.length > 0;
     const currentImages = Array.isArray(existingPost.images) && existingPost.images.length
       ? existingPost.images
@@ -171,8 +201,13 @@ export const updatePost = async (req: AuthenticatedRequest, res: Response) => {
       title: title === undefined ? existingPost.title : title.trim(),
       type: type === undefined ? existingPost.type : type,
       desc: desc === undefined ? existingPost.desc : desc.trim(),
+      coverImage: shouldUpdateImages ? nextImages[0] || existingPost.coverImage || existingPost.image : existingPost.coverImage || existingPost.image,
       image: nextImages[0] || existingPost.image,
       images: nextImages,
+      downloadUrl:
+        downloadUrl === undefined
+          ? uploadedPdfUrl || existingPost.downloadUrl || ""
+          : String(downloadUrl).trim() || uploadedPdfUrl || existingPost.downloadUrl || "",
       editHistory: [...(existingPost.editHistory || []), previousVersion],
     });
 
@@ -256,6 +291,35 @@ export const permanentDeletePost = async (req: AuthenticatedRequest, res: Respon
   } catch (error) {
     console.error("Error permanently deleting post:", error);
     res.status(500).json({ message: "Error permanently deleting post", error: getErrorMessage(error) });
+  }
+};
+
+export const getPostDownload = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const post = await postModel.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
+
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    if (post.type !== "Magazine") {
+      return res.status(400).json({ message: "Only magazines can be downloaded from this endpoint." });
+    }
+
+    const canDownload = req.user?.role === "admin" || req.user?.magazineAccessStatus === "approved";
+    if (!canDownload) {
+      return res.status(403).json({ message: "Payment approval is required before downloading this magazine." });
+    }
+
+    const downloadUrl = String((post as any).downloadUrl || "").trim() || post.image;
+    if (!downloadUrl) {
+      return res.status(404).json({ message: "This magazine does not have a download file yet." });
+    }
+
+    res.status(200).json({ downloadUrl });
+  } catch (error) {
+    console.error("Error unlocking magazine download:", error);
+    res.status(500).json({ message: "Unable to unlock magazine download", error: getErrorMessage(error) });
   }
 };
 

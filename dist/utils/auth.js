@@ -48,6 +48,11 @@ const sanitizeUser = (user) => ({
     adminRequestStatus: user.adminRequestStatus,
     permissionRequestStatus: user.permissionRequestStatus,
     requestedPermissions: user.requestedPermissions || [],
+    magazineAccessStatus: user.magazineAccessStatus || "none",
+    magazineAccessReference: user.magazineAccessReference || "",
+    magazineAccessRequestedAt: user.magazineAccessRequestedAt || "",
+    magazineAccessApprovedAt: user.magazineAccessApprovedAt || "",
+    magazineAccessRejectedAt: user.magazineAccessRejectedAt || "",
 });
 exports.sanitizeUser = sanitizeUser;
 const getBearerToken = (req) => {

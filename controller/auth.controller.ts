@@ -89,6 +89,7 @@ export const register = async (req: AuthenticatedRequest, res: Response) => {
       role: "user",
       adminRequestStatus: "none",
       permissionRequestStatus: "none",
+      magazineAccessStatus: "none",
     });
 
     await auditLogModel.create({
@@ -241,6 +242,46 @@ export const requestPermissions = async (req: AuthenticatedRequest, res: Respons
   }
 };
 
+export const requestMagazineAccess = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user?._id) {
+      return res.status(401).json({ message: "Login is required." });
+    }
+
+    if (req.user?.role === "admin") {
+      return res.status(200).json({ user: getPublicUser(req.user), message: "Admins already have magazine access." });
+    }
+
+    const reference = normalizeText(req.body.reference);
+    const note = normalizeText(req.body.note);
+
+    if (!reference) {
+      return res.status(400).json({ message: "Payment reference is required." });
+    }
+
+    const user = await userModel.findByIdAndUpdate(
+      req.user?._id,
+      {
+        magazineAccessStatus: "pending",
+        magazineAccessReference: reference,
+        magazineAccessRequestedAt: new Date(),
+        magazineAccessApprovedAt: null,
+        magazineAccessRejectedAt: null,
+      },
+      { new: true, runValidators: true }
+    );
+
+    await writeAuditLog(req, "request_magazine_access", "users", {
+      reference,
+      note,
+    });
+
+    res.status(200).json({ user: getPublicUser(user), message: "Magazine payment submitted." });
+  } catch (error) {
+    res.status(500).json({ message: "Unable to request magazine access.", error: getErrorMessage(error) });
+  }
+};
+
 export const getAdminRequests = async (_req: AuthenticatedRequest, res: Response) => {
   try {
     const users = await userModel
@@ -262,6 +303,18 @@ export const getPermissionRequests = async (_req: AuthenticatedRequest, res: Res
     res.status(200).json(users.map(getPublicUser));
   } catch (error) {
     res.status(500).json({ message: "Unable to load blogger requests.", error: getErrorMessage(error) });
+  }
+};
+
+export const getMagazineRequests = async (_req: AuthenticatedRequest, res: Response) => {
+  try {
+    const users = await userModel
+      .find({ magazineAccessStatus: "pending", role: "user" })
+      .sort({ magazineAccessRequestedAt: -1, createdAt: -1 });
+
+    res.status(200).json(users.map(getPublicUser));
+  } catch (error) {
+    res.status(500).json({ message: "Unable to load magazine requests.", error: getErrorMessage(error) });
   }
 };
 
@@ -324,6 +377,35 @@ export const resolvePermissionRequest = async (req: AuthenticatedRequest, res: R
     res.status(200).json({ user: getPublicUser(existingUser) });
   } catch (error) {
     res.status(500).json({ message: "Unable to update blogger request.", error: getErrorMessage(error) });
+  }
+};
+
+export const resolveMagazineRequest = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const status = normalizeText(req.body.status).toLowerCase();
+    if (!["approved", "rejected"].includes(status)) {
+      return res.status(400).json({ message: "Status must be approved or rejected." });
+    }
+
+    const existingUser = await userModel.findById(req.params.id);
+    if (!existingUser) {
+      return res.status(404).json({ message: "User request not found." });
+    }
+
+    existingUser.set({
+      magazineAccessStatus: status,
+      magazineAccessApprovedAt: status === "approved" ? new Date() : null,
+      magazineAccessRejectedAt: status === "rejected" ? new Date() : null,
+    });
+    await existingUser.save();
+
+    await writeAuditLog(req, status === "approved" ? "approve_magazine" : "reject_magazine", "users", {
+      targetUserId: req.params.id,
+    });
+
+    res.status(200).json({ user: getPublicUser(existingUser) });
+  } catch (error) {
+    res.status(500).json({ message: "Unable to update magazine request.", error: getErrorMessage(error) });
   }
 };
 

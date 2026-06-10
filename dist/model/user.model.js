@@ -27,6 +27,15 @@ const userSchema = new mongoose_1.Schema({
     },
     requestedPermissions: { type: [String], default: [] },
     permissionRequestedAt: { type: Date },
+    magazineAccessStatus: {
+        type: String,
+        enum: ["none", "pending", "approved", "rejected"],
+        default: "none",
+    },
+    magazineAccessReference: { type: String, default: "" },
+    magazineAccessRequestedAt: { type: Date },
+    magazineAccessApprovedAt: { type: Date },
+    magazineAccessRejectedAt: { type: Date },
     authTokens: { type: [authTokenSchema], default: [] },
 }, { timestamps: true });
 exports.default = (0, mongoose_1.model)("User", userSchema);

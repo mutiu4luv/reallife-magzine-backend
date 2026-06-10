@@ -11,6 +11,7 @@ const dns_1 = __importDefault(require("dns"));
 const db_1 = require("./config/db");
 const contact_routes_1 = __importDefault(require("./route/contact.routes"));
 const post_routes_1 = __importDefault(require("./route/post.routes"));
+const magazine_routes_1 = __importDefault(require("./route/magazine.routes"));
 const upcomingEvent_routes_1 = __importDefault(require("./route/upcomingEvent.routes"));
 const news_routes_1 = __importDefault(require("./route/news.routes"));
 const pastEdition_routes_1 = __importDefault(require("./route/pastEdition.routes"));
@@ -80,6 +81,7 @@ const requireDatabase = async (_req, res, next) => {
     }
 };
 app.use("/api/posts", requireDatabase, post_routes_1.default);
+app.use("/api/magazines", requireDatabase, magazine_routes_1.default);
 app.use("/api/auth", requireDatabase, auth_routes_1.default);
 app.use("/api/upcoming-events", requireDatabase, upcomingEvent_routes_1.default);
 app.use("/api/events", requireDatabase, upcomingEvent_routes_1.default);

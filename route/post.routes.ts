@@ -4,6 +4,7 @@ import {
   deletePost,
   getDeletedPosts,
   getPostById,
+  getPostDownload,
   getPosts,
   permanentDeletePost,
   restorePost,
@@ -11,13 +12,14 @@ import {
   updatePost,
 } from "../controller/post.controller";
 import { uploadImagesField } from "./uploadImage";
-import { auditAction, requireAdmin, requirePermission } from "../utils/auth";
+import { auditAction, requireAdmin, requireAuth, requirePermission } from "../utils/auth";
 
 const router = Router();
 
 router.get("/", getPosts);
 router.get("/deleted/list", requireAdmin, getDeletedPosts);
 router.get("/:id", getPostById);
+router.get("/:id/download", requireAuth, getPostDownload);
 router.post("/", requirePermission("posts:create"), auditAction("posts", "create"), uploadImagesField, createPost);
 router.put("/:id", requirePermission("posts:update"), auditAction("posts", "update"), uploadImagesField, updatePost);
 router.patch("/:id", requirePermission("posts:update"), auditAction("posts", "update"), uploadImagesField, updatePost);

@@ -5,15 +5,15 @@ import type { UploadedFile } from "../utils/imageUpload";
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024,
+    fileSize: 25 * 1024 * 1024,
   },
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
+    if (file.mimetype.startsWith("image/") || file.mimetype === "application/pdf") {
       cb(null, true);
       return;
     }
 
-    cb(new Error("Only image files are allowed"));
+    cb(new Error("Only image and PDF files are allowed"));
   },
 });
 
@@ -25,7 +25,7 @@ export const uploadImageField = (req: Request, res: Response, next: NextFunction
     }
 
     if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
-      res.status(400).json({ message: "Image must be 5MB or smaller" });
+      res.status(400).json({ message: "Files must be 25MB or smaller" });
       return;
     }
 
@@ -39,6 +39,7 @@ export const uploadImagesField = (req: Request, res: Response, next: NextFunctio
   upload.fields([
     { name: "images", maxCount: 10 },
     { name: "image", maxCount: 10 },
+    { name: "pdfFile", maxCount: 1 },
   ])(req, res, (error: unknown) => {
     if (!error) {
       const requestWithFiles = req as Request & {
@@ -49,6 +50,7 @@ export const uploadImagesField = (req: Request, res: Response, next: NextFunctio
         ...(filesByField.images || []),
         ...(filesByField.image || []),
       ];
+      const pdfFiles = filesByField.pdfFile || [];
 
       if (files.length > 10) {
         res.status(400).json({ message: "Upload 10 images or fewer" });
@@ -56,12 +58,13 @@ export const uploadImagesField = (req: Request, res: Response, next: NextFunctio
       }
 
       (req as Request & { files: UploadedFile[] }).files = files;
+      (req as Request & { pdfFile?: UploadedFile }).pdfFile = pdfFiles[0];
       next();
       return;
     }
 
     if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
-      res.status(400).json({ message: "Each image must be 5MB or smaller" });
+      res.status(400).json({ message: "Each file must be 25MB or smaller" });
       return;
     }
 

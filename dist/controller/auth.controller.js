@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAvailablePermissions = exports.getAuditLogs = exports.updateUserRole = exports.deleteUser = exports.getUsers = exports.resolvePermissionRequest = exports.resolveAdminRequest = exports.getPermissionRequests = exports.getAdminRequests = exports.requestPermissions = exports.requestAdminAccess = exports.logout = exports.getMe = exports.changePassword = exports.login = exports.register = void 0;
+exports.getAvailablePermissions = exports.getAuditLogs = exports.updateUserRole = exports.deleteUser = exports.getUsers = exports.resolveMagazineRequest = exports.resolvePermissionRequest = exports.resolveAdminRequest = exports.getMagazineRequests = exports.getPermissionRequests = exports.getAdminRequests = exports.requestMagazineAccess = exports.requestPermissions = exports.requestAdminAccess = exports.logout = exports.getMe = exports.changePassword = exports.login = exports.register = void 0;
 const user_model_1 = __importDefault(require("../model/user.model"));
 const auditLog_model_1 = __importDefault(require("../model/auditLog.model"));
 const post_model_1 = __importDefault(require("../model/post.model"));
@@ -78,6 +78,7 @@ const register = async (req, res) => {
             role: "user",
             adminRequestStatus: "none",
             permissionRequestStatus: "none",
+            magazineAccessStatus: "none",
         });
         await auditLog_model_1.default.create({
             actorId: user._id,
@@ -207,6 +208,37 @@ const requestPermissions = async (req, res) => {
     }
 };
 exports.requestPermissions = requestPermissions;
+const requestMagazineAccess = async (req, res) => {
+    try {
+        if (!req.user?._id) {
+            return res.status(401).json({ message: "Login is required." });
+        }
+        if (req.user?.role === "admin") {
+            return res.status(200).json({ user: getPublicUser(req.user), message: "Admins already have magazine access." });
+        }
+        const reference = normalizeText(req.body.reference);
+        const note = normalizeText(req.body.note);
+        if (!reference) {
+            return res.status(400).json({ message: "Payment reference is required." });
+        }
+        const user = await user_model_1.default.findByIdAndUpdate(req.user?._id, {
+            magazineAccessStatus: "pending",
+            magazineAccessReference: reference,
+            magazineAccessRequestedAt: new Date(),
+            magazineAccessApprovedAt: null,
+            magazineAccessRejectedAt: null,
+        }, { new: true, runValidators: true });
+        await (0, auth_1.writeAuditLog)(req, "request_magazine_access", "users", {
+            reference,
+            note,
+        });
+        res.status(200).json({ user: getPublicUser(user), message: "Magazine payment submitted." });
+    }
+    catch (error) {
+        res.status(500).json({ message: "Unable to request magazine access.", error: (0, imageUpload_1.getErrorMessage)(error) });
+    }
+};
+exports.requestMagazineAccess = requestMagazineAccess;
 const getAdminRequests = async (_req, res) => {
     try {
         const users = await user_model_1.default
@@ -231,6 +263,18 @@ const getPermissionRequests = async (_req, res) => {
     }
 };
 exports.getPermissionRequests = getPermissionRequests;
+const getMagazineRequests = async (_req, res) => {
+    try {
+        const users = await user_model_1.default
+            .find({ magazineAccessStatus: "pending", role: "user" })
+            .sort({ magazineAccessRequestedAt: -1, createdAt: -1 });
+        res.status(200).json(users.map(getPublicUser));
+    }
+    catch (error) {
+        res.status(500).json({ message: "Unable to load magazine requests.", error: (0, imageUpload_1.getErrorMessage)(error) });
+    }
+};
+exports.getMagazineRequests = getMagazineRequests;
 const resolveAdminRequest = async (req, res) => {
     try {
         const status = normalizeText(req.body.status).toLowerCase();
@@ -284,6 +328,32 @@ const resolvePermissionRequest = async (req, res) => {
     }
 };
 exports.resolvePermissionRequest = resolvePermissionRequest;
+const resolveMagazineRequest = async (req, res) => {
+    try {
+        const status = normalizeText(req.body.status).toLowerCase();
+        if (!["approved", "rejected"].includes(status)) {
+            return res.status(400).json({ message: "Status must be approved or rejected." });
+        }
+        const existingUser = await user_model_1.default.findById(req.params.id);
+        if (!existingUser) {
+            return res.status(404).json({ message: "User request not found." });
+        }
+        existingUser.set({
+            magazineAccessStatus: status,
+            magazineAccessApprovedAt: status === "approved" ? new Date() : null,
+            magazineAccessRejectedAt: status === "rejected" ? new Date() : null,
+        });
+        await existingUser.save();
+        await (0, auth_1.writeAuditLog)(req, status === "approved" ? "approve_magazine" : "reject_magazine", "users", {
+            targetUserId: req.params.id,
+        });
+        res.status(200).json({ user: getPublicUser(existingUser) });
+    }
+    catch (error) {
+        res.status(500).json({ message: "Unable to update magazine request.", error: (0, imageUpload_1.getErrorMessage)(error) });
+    }
+};
+exports.resolveMagazineRequest = resolveMagazineRequest;
 const getUsers = async (_req, res) => {
     try {
         const users = await user_model_1.default.find().sort({ createdAt: -1 });
