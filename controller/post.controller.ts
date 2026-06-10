@@ -64,18 +64,26 @@ export const getPosts = async (_req: Request, res: Response) => {
   }
 };
 
-export const getMagazines = async (_req: Request, res: Response) => {
+export const getMagazines = async (req: Request, res: Response) => {
   try {
+    const page = Math.max(1, Number.parseInt(String(req.query.page || "1"), 10) || 1);
+    const limit = Math.max(1, Math.min(24, Number.parseInt(String(req.query.limit || "12"), 10) || 12));
+    const skip = (page - 1) * limit;
+    const total = await postModel.countDocuments({ type: "Magazine", isDeleted: { $ne: true } });
     const magazines = await postModel
       .find({ type: "Magazine", isDeleted: { $ne: true } })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
-    res.status(200).json(
+    res.status(200).json({
+      data:
       magazines.map((magazine) => ({
         ...magazine.toObject(),
         coverImage: String((magazine as any).coverImage || magazine.image || "").trim(),
-      }))
-    );
+      })),
+      meta: { page, limit, total, hasMore: skip + magazines.length < total },
+    });
   } catch (error) {
     console.error("Error fetching magazines:", error);
     res.status(500).json({ message: "Error fetching magazines", error: getErrorMessage(error) });

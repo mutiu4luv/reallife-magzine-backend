@@ -31,6 +31,10 @@ const getUploadedFiles = (req) => {
             ? [requestWithFiles.file]
             : [];
 };
+const getUploadedPdfFile = (req) => {
+    const requestWithPdf = req;
+    return requestWithPdf.pdfFile;
+};
 const uploadPostImages = async (files, imageSources) => {
     const fileUrls = (await Promise.all(files.map((file) => (0, imageUpload_1.uploadImage)("reality_life_posts", file)))).filter((image) => Boolean(image));
     const sourceUrls = (await Promise.all(imageSources.map((imageSource) => (0, imageUpload_1.uploadImage)("reality_life_posts", undefined, imageSource)))).filter((image) => Boolean(image));
@@ -53,15 +57,24 @@ const getPosts = async (_req, res) => {
     }
 };
 exports.getPosts = getPosts;
-const getMagazines = async (_req, res) => {
+const getMagazines = async (req, res) => {
     try {
+        const page = Math.max(1, Number.parseInt(String(req.query.page || "1"), 10) || 1);
+        const limit = Math.max(1, Math.min(24, Number.parseInt(String(req.query.limit || "12"), 10) || 12));
+        const skip = (page - 1) * limit;
+        const total = await post_model_1.default.countDocuments({ type: "Magazine", isDeleted: { $ne: true } });
         const magazines = await post_model_1.default
             .find({ type: "Magazine", isDeleted: { $ne: true } })
-            .sort({ createdAt: -1 });
-        res.status(200).json(magazines.map((magazine) => ({
-            ...magazine.toObject(),
-            coverImage: String(magazine.coverImage || magazine.image || "").trim(),
-        })));
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+        res.status(200).json({
+            data: magazines.map((magazine) => ({
+                ...magazine.toObject(),
+                coverImage: String(magazine.coverImage || magazine.image || "").trim(),
+            })),
+            meta: { page, limit, total, hasMore: skip + magazines.length < total },
+        });
     }
     catch (error) {
         console.error("Error fetching magazines:", error);
@@ -87,6 +100,7 @@ const createPost = async (req, res) => {
     try {
         const { title, type, desc, imageUrl, image, imageUrls, images, downloadUrl } = req.body;
         const files = getUploadedFiles(req);
+        const pdfFile = getUploadedPdfFile(req);
         const imageSources = [
             ...parseImageList(imageUrls || images),
             ...parseImageList(imageUrl || image),
@@ -95,6 +109,7 @@ const createPost = async (req, res) => {
             return res.status(400).json({ message: "Title, type, and description are required" });
         }
         const uploadedImages = await uploadPostImages(files, imageSources);
+        const uploadedPdfUrl = pdfFile ? await (0, imageUpload_1.uploadImage)("reality_life_posts", pdfFile) : "";
         if (!uploadedImages.length) {
             return res.status(400).json({
                 message: "Image is required. Upload files named 'images' or provide imageUrls.",
@@ -108,7 +123,7 @@ const createPost = async (req, res) => {
             coverImage: uploadedImages[0],
             image: uploadedImages[0],
             images: uploadedImages,
-            downloadUrl: typeof downloadUrl === "string" ? downloadUrl.trim() : "",
+            downloadUrl: (typeof downloadUrl === "string" ? downloadUrl.trim() : "") || uploadedPdfUrl || "",
             createdBy: getEditorMeta(authReq),
         });
         res.status(201).json(post);
@@ -135,6 +150,7 @@ const updatePost = async (req, res) => {
         }
         const { title, type, desc, imageUrl, image, imageUrls, images, downloadUrl } = req.body;
         const files = getUploadedFiles(req);
+        const pdfFile = getUploadedPdfFile(req);
         const imageSources = [
             ...parseImageList(imageUrls || images),
             ...parseImageList(imageUrl || image),
@@ -149,6 +165,7 @@ const updatePost = async (req, res) => {
             return res.status(400).json({ message: "Type must be Magazine or Book" });
         }
         const uploadedImages = await uploadPostImages(files, imageSources);
+        const uploadedPdfUrl = pdfFile ? await (0, imageUpload_1.uploadImage)("reality_life_posts", pdfFile) : "";
         const shouldUpdateImages = uploadedImages.length > 0;
         const currentImages = Array.isArray(existingPost.images) && existingPost.images.length
             ? existingPost.images
@@ -172,7 +189,9 @@ const updatePost = async (req, res) => {
             coverImage: shouldUpdateImages ? nextImages[0] || existingPost.coverImage || existingPost.image : existingPost.coverImage || existingPost.image,
             image: nextImages[0] || existingPost.image,
             images: nextImages,
-            downloadUrl: downloadUrl === undefined ? existingPost.downloadUrl || "" : String(downloadUrl).trim(),
+            downloadUrl: downloadUrl === undefined
+                ? uploadedPdfUrl || existingPost.downloadUrl || ""
+                : String(downloadUrl).trim() || uploadedPdfUrl || existingPost.downloadUrl || "",
             editHistory: [...(existingPost.editHistory || []), previousVersion],
         });
         const updatedPost = await existingPost.save();

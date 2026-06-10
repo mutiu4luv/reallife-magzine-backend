@@ -40,9 +40,12 @@ const getFileExtension = (file) => {
     if (file.mimetype === "image/webp") {
         return ".webp";
     }
+    if (file.mimetype === "application/pdf" || originalExtension.toLowerCase() === ".pdf") {
+        return ".pdf";
+    }
     return ".jpg";
 };
-const saveImageLocally = async (file) => {
+const saveFileLocally = async (file) => {
     if (!file.buffer) {
         return null;
     }
@@ -67,10 +70,11 @@ const configureCloudinary = () => {
         api_secret: apiSecret,
     });
 };
-const uploadBufferToCloudinary = (buffer, folder) => {
+const uploadBufferToCloudinary = (buffer, folder, resourceType = "image") => {
     return new Promise((resolve, reject) => {
         const stream = cloudinary_1.v2.uploader.upload_stream({
             folder,
+            resource_type: resourceType,
             timeout: Number(process.env.CLOUDINARY_UPLOAD_TIMEOUT_MS || 120000),
         }, (error, result) => {
             if (error || !result) {
@@ -82,14 +86,17 @@ const uploadBufferToCloudinary = (buffer, folder) => {
         stream.end(buffer);
     });
 };
-const uploadImageToCloudinary = async (folder, file, imageUrl) => {
+const uploadFileToCloudinary = async (folder, file, imageUrl) => {
     configureCloudinary();
+    const isPdf = file?.mimetype === "application/pdf" || file?.originalname?.toLowerCase().endsWith(".pdf");
+    const resourceType = isPdf ? "raw" : "image";
     if (file?.buffer) {
-        return uploadBufferToCloudinary(file.buffer, folder);
+        return uploadBufferToCloudinary(file.buffer, folder, resourceType);
     }
     if (file?.path) {
         const result = await cloudinary_1.v2.uploader.upload(file.path, {
             folder,
+            resource_type: resourceType,
             timeout: Number(process.env.CLOUDINARY_UPLOAD_TIMEOUT_MS || 120000),
         });
         return result.secure_url;
@@ -97,6 +104,7 @@ const uploadImageToCloudinary = async (folder, file, imageUrl) => {
     if (imageUrl) {
         const result = await cloudinary_1.v2.uploader.upload(imageUrl, {
             folder,
+            resource_type: resourceType,
             timeout: Number(process.env.CLOUDINARY_UPLOAD_TIMEOUT_MS || 120000),
         });
         return result.secure_url;
@@ -105,7 +113,7 @@ const uploadImageToCloudinary = async (folder, file, imageUrl) => {
 };
 const uploadImage = async (folder, file, imageUrl) => {
     try {
-        return await uploadImageToCloudinary(folder, file, imageUrl);
+        return await uploadFileToCloudinary(folder, file, imageUrl);
     }
     catch (error) {
         if (isProduction) {
@@ -113,7 +121,7 @@ const uploadImage = async (folder, file, imageUrl) => {
         }
         console.warn("Cloudinary upload failed. Using local development fallback:", (0, exports.getErrorMessage)(error));
         if (file?.buffer) {
-            return saveImageLocally(file);
+            return saveFileLocally(file);
         }
         if (imageUrl) {
             return imageUrl;

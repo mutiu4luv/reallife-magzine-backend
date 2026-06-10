@@ -8,14 +8,14 @@ const multer_1 = __importDefault(require("multer"));
 const upload = (0, multer_1.default)({
     storage: multer_1.default.memoryStorage(),
     limits: {
-        fileSize: 5 * 1024 * 1024,
+        fileSize: 25 * 1024 * 1024,
     },
     fileFilter: (_req, file, cb) => {
-        if (file.mimetype.startsWith("image/")) {
+        if (file.mimetype.startsWith("image/") || file.mimetype === "application/pdf") {
             cb(null, true);
             return;
         }
-        cb(new Error("Only image files are allowed"));
+        cb(new Error("Only image and PDF files are allowed"));
     },
 });
 const uploadImageField = (req, res, next) => {
@@ -25,7 +25,7 @@ const uploadImageField = (req, res, next) => {
             return;
         }
         if (error instanceof multer_1.default.MulterError && error.code === "LIMIT_FILE_SIZE") {
-            res.status(400).json({ message: "Image must be 5MB or smaller" });
+            res.status(400).json({ message: "Files must be 25MB or smaller" });
             return;
         }
         res.status(400).json({
@@ -38,6 +38,7 @@ const uploadImagesField = (req, res, next) => {
     upload.fields([
         { name: "images", maxCount: 10 },
         { name: "image", maxCount: 10 },
+        { name: "pdfFile", maxCount: 1 },
     ])(req, res, (error) => {
         if (!error) {
             const requestWithFiles = req;
@@ -46,16 +47,18 @@ const uploadImagesField = (req, res, next) => {
                 ...(filesByField.images || []),
                 ...(filesByField.image || []),
             ];
+            const pdfFiles = filesByField.pdfFile || [];
             if (files.length > 10) {
                 res.status(400).json({ message: "Upload 10 images or fewer" });
                 return;
             }
             req.files = files;
+            req.pdfFile = pdfFiles[0];
             next();
             return;
         }
         if (error instanceof multer_1.default.MulterError && error.code === "LIMIT_FILE_SIZE") {
-            res.status(400).json({ message: "Each image must be 5MB or smaller" });
+            res.status(400).json({ message: "Each file must be 25MB or smaller" });
             return;
         }
         res.status(400).json({
