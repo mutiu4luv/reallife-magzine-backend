@@ -53,6 +53,20 @@ const sanitizeUser = (user) => ({
     magazineAccessRequestedAt: user.magazineAccessRequestedAt || "",
     magazineAccessApprovedAt: user.magazineAccessApprovedAt || "",
     magazineAccessRejectedAt: user.magazineAccessRejectedAt || "",
+    magazinePurchases: Array.isArray(user.magazinePurchases)
+        ? user.magazinePurchases
+            .map((purchase) => ({
+            magazineId: String(purchase.magazineId || ""),
+            magazineTitle: String(purchase.magazineTitle || ""),
+            status: (purchase.status || "pending"),
+            reference: String(purchase.reference || ""),
+            note: String(purchase.note || ""),
+            requestedAt: String(purchase.requestedAt || ""),
+            approvedAt: String(purchase.approvedAt || ""),
+            rejectedAt: String(purchase.rejectedAt || ""),
+        }))
+            .filter((purchase) => Boolean(purchase.magazineId))
+        : [],
 });
 exports.sanitizeUser = sanitizeUser;
 const getBearerToken = (req) => {

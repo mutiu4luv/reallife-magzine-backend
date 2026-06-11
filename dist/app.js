@@ -28,6 +28,12 @@ const app = (0, express_1.default)();
 const allowedOrigins = process.env.CORS_ORIGIN?.split(",")
     .map((origin) => origin.trim().replace(/\/+$/, ""))
     .filter(Boolean);
+const explicitLocalOrigins = [
+    "http://localhost:5143",
+    "http://127.0.0.1:5143",
+    "https://localhost:5143",
+    "https://127.0.0.1:5143",
+];
 const isLocalDevOrigin = (origin) => /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
@@ -35,6 +41,7 @@ app.use((0, cors_1.default)({
         if (!normalizedOrigin ||
             !allowedOrigins?.length ||
             allowedOrigins.includes(normalizedOrigin) ||
+            explicitLocalOrigins.includes(normalizedOrigin) ||
             isLocalDevOrigin(normalizedOrigin)) {
             callback(null, true);
             return;

@@ -27,7 +27,14 @@ const app = express();
 const allowedOrigins = process.env.CORS_ORIGIN?.split(",")
   .map((origin) => origin.trim().replace(/\/+$/, ""))
   .filter(Boolean);
-const isLocalDevOrigin = (origin: string) => /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
+const explicitLocalOrigins = [
+  "http://localhost:5143",
+  "http://127.0.0.1:5143",
+  "https://localhost:5143",
+  "https://127.0.0.1:5143",
+];
+const isLocalDevOrigin = (origin: string) =>
+  /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
 
 app.use(
   cors({
@@ -38,6 +45,7 @@ app.use(
         !normalizedOrigin ||
         !allowedOrigins?.length ||
         allowedOrigins.includes(normalizedOrigin) ||
+        explicitLocalOrigins.includes(normalizedOrigin) ||
         isLocalDevOrigin(normalizedOrigin)
       ) {
         callback(null, true);
@@ -60,7 +68,11 @@ app.get("/api/health", (_, res) => {
   });
 });
 
-const requireDatabase = async (_req: Request, res: Response, next: NextFunction) => {
+const requireDatabase = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   const retryDelays = [500, 1200, 2500];
   let lastError: unknown;
 
@@ -85,7 +97,8 @@ const requireDatabase = async (_req: Request, res: Response, next: NextFunction)
   } catch (error) {
     console.error("Failed to connect to MongoDB", error);
     res.status(503).json({
-      message: "Database connection is not ready. Please try again in a moment.",
+      message:
+        "Database connection is not ready. Please try again in a moment.",
     });
   }
 };

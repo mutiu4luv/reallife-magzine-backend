@@ -36,6 +36,21 @@ const userSchema = new mongoose_1.Schema({
     magazineAccessRequestedAt: { type: Date },
     magazineAccessApprovedAt: { type: Date },
     magazineAccessRejectedAt: { type: Date },
+    magazinePurchases: {
+        type: [
+            {
+                magazineId: { type: String, required: true },
+                magazineTitle: { type: String, default: "" },
+                status: { type: String, enum: ["pending", "approved", "rejected"], default: "pending" },
+                reference: { type: String, default: "" },
+                note: { type: String, default: "" },
+                requestedAt: { type: Date },
+                approvedAt: { type: Date },
+                rejectedAt: { type: Date },
+            },
+        ],
+        default: [],
+    },
     authTokens: { type: [authTokenSchema], default: [] },
 }, { timestamps: true });
 exports.default = (0, mongoose_1.model)("User", userSchema);

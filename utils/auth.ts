@@ -22,6 +22,16 @@ export type AuthUser = {
   magazineAccessRequestedAt?: Date | string;
   magazineAccessApprovedAt?: Date | string;
   magazineAccessRejectedAt?: Date | string;
+  magazinePurchases?: Array<{
+    magazineId: string;
+    magazineTitle?: string;
+    status: "pending" | "approved" | "rejected";
+    reference?: string;
+    note?: string;
+    requestedAt?: Date | string;
+    approvedAt?: Date | string;
+    rejectedAt?: Date | string;
+  }>;
 };
 
 export type AuthenticatedRequest = Request & {
@@ -78,6 +88,23 @@ export const sanitizeUser = (user: AuthUser) => ({
   magazineAccessRequestedAt: user.magazineAccessRequestedAt || "",
   magazineAccessApprovedAt: user.magazineAccessApprovedAt || "",
   magazineAccessRejectedAt: user.magazineAccessRejectedAt || "",
+  magazinePurchases: Array.isArray(user.magazinePurchases)
+    ? user.magazinePurchases
+        .map((purchase) => ({
+          magazineId: String((purchase as { magazineId?: unknown }).magazineId || ""),
+          magazineTitle: String((purchase as { magazineTitle?: unknown }).magazineTitle || ""),
+          status: ((purchase as { status?: "pending" | "approved" | "rejected" }).status || "pending") as
+            | "pending"
+            | "approved"
+            | "rejected",
+          reference: String((purchase as { reference?: unknown }).reference || ""),
+          note: String((purchase as { note?: unknown }).note || ""),
+          requestedAt: String((purchase as { requestedAt?: unknown }).requestedAt || ""),
+          approvedAt: String((purchase as { approvedAt?: unknown }).approvedAt || ""),
+          rejectedAt: String((purchase as { rejectedAt?: unknown }).rejectedAt || ""),
+        }))
+        .filter((purchase) => Boolean(purchase.magazineId))
+    : [],
 });
 
 const getBearerToken = (req: Request) => {
